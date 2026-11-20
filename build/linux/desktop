@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=SyncCraft
+Comment=Database schema & data compare tool
+# The Exec line includes %u to pass the URL to the application
+Exec=/usr/local/bin/synccraft %u
+Terminal=false
+Type=Application
+Icon=synccraft
+Categories=Utility;
+StartupWMClass=synccraft
+
+ 

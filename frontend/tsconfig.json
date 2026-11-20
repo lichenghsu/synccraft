@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "types": ["vite/client", "node"],
+    "skipLibCheck": true,
+
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // Keep in sync with resolve.alias in vite.config.ts.
+    "paths": {
+      "@bindings/*": ["./bindings/github.com/lichenghsu/synccraft/*"],
+      "@events": ["./bindings/events/index.ts"]
+    }
+  },
+  "include": ["src", "bindings", "vite.config.ts"]
+}
