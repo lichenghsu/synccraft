@@ -1,0 +1,61 @@
+# Wails / Go
+bin/
+.task/
+.wails/
+*.exe
+*.exe~
+*.test
+*.out
+coverage.*
+/vendor/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+*.tsbuildinfo
+.vite/
+.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Docs build
+docs/pdf/SyncCraft-Guide.html
+
+# Local data
+dev/data/
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Secrets & local overrides
+.env
+.env.*
+!.env.example
+mise.local.toml
+.mise.local.toml
+
+# Packages & signing
+*.dmg
+*.pkg
+*.AppImage
+*.deb
+*.rpm
+*.p12
+*.cer
+*.mobileprovision
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini

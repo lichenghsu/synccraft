@@ -1,0 +1,100 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    "group:monorepos"
+  ],
+  "timezone": "Asia/Taipei",
+  "schedule": [
+    "before 9am on monday"
+  ],
+  "prConcurrentLimit": 5,
+  "labels": [
+    "dependencies"
+  ],
+  "postUpdateOptions": [
+    "gomodTidy",
+    "gomodUpdateImportPaths"
+  ],
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "labels": [
+      "security"
+    ],
+    "schedule": [
+      "at any time"
+    ]
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": [
+      "before 9am on the first day of the month"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Default: auto-merge patch/minor of stable (>= 1.0) packages once CI passes.",
+      "matchUpdateTypes": [
+        "patch",
+        "minor"
+      ],
+      "matchCurrentVersion": "!/^v?0\\./",
+      "automerge": true,
+      "automergeType": "pr"
+    },
+    {
+      "description": "Major updates: separate PR, manual review.",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "addLabels": [
+        "major"
+      ],
+      "automerge": false
+    },
+    {
+      "groupName": "react",
+      "matchPackageNames": [
+        "react",
+        "react-dom",
+        "@types/react",
+        "@types/react-dom"
+      ]
+    },
+    {
+      "groupName": "vite",
+      "matchPackageNames": [
+        "vite",
+        "/^@vitejs\\//"
+      ]
+    },
+    {
+      "groupName": "github actions",
+      "matchManagers": [
+        "github-actions"
+      ]
+    },
+    {
+      "description": "Wails CLI, Go module and @wailsio/runtime must move together; always manual.",
+      "groupName": "wails",
+      "matchPackageNames": [
+        "/wailsapp/wails/",
+        "@wailsio/runtime"
+      ],
+      "automerge": false
+    },
+    {
+      "description": "Database drivers need integration tests; always manual.",
+      "groupName": "database drivers",
+      "matchPackageNames": [
+        "github.com/go-sql-driver/mysql",
+        "github.com/jackc/pgx/v5",
+        "github.com/microsoft/go-mssqldb",
+        "modernc.org/sqlite"
+      ],
+      "automerge": false
+    }
+  ]
+}

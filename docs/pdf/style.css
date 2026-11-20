@@ -1,0 +1,79 @@
+@page {
+  size: A4; margin: 20mm 18mm 22mm 18mm;
+  @bottom-center { content: counter(page); font: 9pt "JetBrains Mono"; color: #8a94a6; }
+  @top-right { content: string(chapter); font: 8.5pt "Noto Sans CJK TC"; color: #8a94a6; }
+}
+@page cover { margin: 0; @bottom-center { content: none } @top-right { content: none } }
+@page toc { @top-right { content: "目錄" } }
+
+:root { --ink:#1b2636; --accent:#0f9d8a; --accent2:#3b6fd8; --muted:#5b6578; --line:#e3e8ef; --code-bg:#f5f7fa; }
+html { font-family: "Noto Sans CJK TC", "Noto Sans", sans-serif; font-size: 10pt; line-height: 1.65; color: var(--ink); }
+body { margin: 0; }
+
+/* cover */
+.cover { page: cover; height: 297mm; box-sizing: border-box; padding: 60mm 22mm 0;
+  background: linear-gradient(160deg, #1b2636 0%, #22344d 55%, #0f9d8a 140%); color: #fff; break-after: page; position: relative; }
+.cover .kicker { font: 600 10pt "JetBrains Mono"; letter-spacing: .2em; color: #7fe3d3; text-transform: uppercase; }
+.cover h1 { break-before: auto; font-size: 46pt; margin: 6mm 0 2mm; line-height: 1.1; border: 0; color: #fff; string-set: none; }
+.cover .sub { font-size: 15pt; color: #cfd8e6; margin: 0 0 14mm; }
+.cover .stack { display: flex; gap: 3mm; flex-wrap: wrap; }
+.cover .stack span { font: 9pt "JetBrains Mono"; border: 1px solid #7fe3d3; color: #bff3ea; padding: 1.2mm 3mm; border-radius: 10mm; }
+.cover .foot { position: absolute; bottom: 22mm; left: 22mm; right: 22mm; font-size: 9pt; color: #9fb0c8; border-top: 1px solid #3a4d68; padding-top: 4mm; }
+
+/* toc */
+nav#TOC { page: toc; break-after: page; }
+nav#TOC::before { content: "目錄"; display: block; font-size: 22pt; font-weight: 700; margin-bottom: 6mm; color: var(--ink); }
+nav#TOC ul { list-style: none; padding-left: 0; margin: 0; }
+nav#TOC > ul > li { margin: 2.5mm 0 1mm; font-weight: 700; font-size: 11pt; }
+nav#TOC > ul > li > ul { font-weight: 400; font-size: 9.5pt; padding-left: 6mm; }
+nav#TOC > ul > li > ul > li { margin: .6mm 0; }
+nav#TOC ul ul ul { display: none; }
+nav#TOC a { color: var(--ink); text-decoration: none; }
+nav#TOC a::after { content: leader(".") target-counter(attr(href), page); color: var(--muted); font-weight: 400; }
+
+/* headings */
+h1 { string-set: chapter content(); break-before: page; font-size: 22pt; margin: 0 0 6mm; padding-bottom: 3mm;
+  border-bottom: 3px solid var(--accent); color: var(--ink); }
+h2 { font-size: 14.5pt; margin: 8mm 0 3mm; color: var(--ink); break-after: avoid; }
+h2::before { content: ""; display: inline-block; width: 2.2mm; height: 5mm; background: var(--accent); margin-right: 2.5mm; vertical-align: -0.8mm; border-radius: 1px; }
+h3 { font-size: 11.5pt; margin: 6mm 0 2mm; color: var(--accent2); break-after: avoid; }
+h4 { font-size: 10.5pt; margin: 4mm 0 1.5mm; break-after: avoid; }
+p, li { orphans: 3; widows: 3; }
+a { color: var(--accent2); text-decoration: none; }
+strong { color: #0c3c5e; }
+hr { border: 0; border-top: 1px dashed var(--line); margin: 6mm 0; }
+
+/* code */
+code { font-family: "JetBrains Mono", "Noto Sans Mono CJK TC", monospace; font-size: 8.6pt; }
+:not(pre) > code { background: #eef2f7; padding: .2mm 1.2mm; border-radius: 1mm; color: #a3367a; }
+pre { background: var(--code-bg); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 1.5mm;
+  padding: 3mm 3.5mm; white-space: pre-wrap; word-break: break-all; line-height: 1.45; margin: 3mm 0; }
+pre code { font-size: 8.2pt; color: #24292f; }
+div.sourceCode { margin: 3mm 0; }
+/* syntax colors */
+code span.kw, code span.cf { color: #cf222e; font-weight: 600; }
+code span.dt { color: #8250df; }
+code span.st, code span.ch, code span.ss, code span.vs { color: #0a3069; }
+code span.co { color: #6e7781; font-style: italic; }
+code span.fu { color: #8250df; }
+code span.dv, code span.bn, code span.fl { color: #0550ae; }
+code span.op { color: #cf222e; }
+code span.at, code span.va { color: #953800; }
+code span.bu, code span.im { color: #0550ae; }
+code span.cn { color: #0550ae; }
+
+/* tables */
+table { border-collapse: collapse; width: 100%; margin: 3mm 0 4mm; font-size: 8.8pt; break-inside: auto; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+th { background: var(--ink); color: #fff; font-weight: 600; text-align: left; padding: 1.6mm 2.2mm; }
+td { padding: 1.4mm 2.2mm; border-bottom: 1px solid var(--line); vertical-align: top; }
+tbody tr:nth-child(even) td { background: #f8fafc; }
+td code, th code { font-size: 8pt; word-break: break-all; }
+
+/* blockquote as callout */
+blockquote { margin: 3mm 0; padding: 2.5mm 4mm; background: #eaf7f4; border-left: 3px solid var(--accent); border-radius: 0 1.5mm 1.5mm 0; color: #24433e; }
+blockquote p { margin: 1mm 0; }
+
+ul.task-list { list-style: none; padding-left: 2mm; }
+ul.task-list input { margin-right: 2mm; }

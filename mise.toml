@@ -1,0 +1,3 @@
+# Go itself comes from the system (Wails v3 requires >= 1.26).
+[tools]
+"go:github.com/wailsapp/wails/v3/cmd/wails3" = "3.1.0"
