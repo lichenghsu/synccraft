@@ -2,6 +2,7 @@ package store
 
 import (
 	"errors"
+	"slices"
 
 	"github.com/zalando/go-keyring"
 
@@ -38,7 +39,17 @@ func (k Keyring) Delete(key string) error {
 	return nil
 }
 
-var secretNames = []string{"password", "ssh-password", "ssh-passphrase"}
+// Secret names: keychain key suffixes and the values accepted in update lists.
+const (
+	SecretPassword      = "password"
+	SecretSSHPassword   = "ssh-password"
+	SecretSSHPassphrase = "ssh-passphrase"
+)
+
+var secretNames = []string{SecretPassword, SecretSSHPassword, SecretSSHPassphrase}
+
+// AllSecrets lists every secret name, for "update everything".
+func AllSecrets() []string { return slices.Clone(secretNames) }
 
 type secretField struct {
 	name string
@@ -49,9 +60,9 @@ func secretKey(id, name string) string { return id + "/" + name }
 
 // secretFields returns the secret fields present in cfg (SSH ones only with a tunnel).
 func secretFields(cfg *conn.ConnectionConfig) []secretField {
-	fs := []secretField{{"password", &cfg.Password}}
+	fs := []secretField{{SecretPassword, &cfg.Password}}
 	if cfg.SSH != nil {
-		fs = append(fs, secretField{"ssh-password", &cfg.SSH.Password}, secretField{"ssh-passphrase", &cfg.SSH.Passphrase})
+		fs = append(fs, secretField{SecretSSHPassword, &cfg.SSH.Password}, secretField{SecretSSHPassphrase, &cfg.SSH.Passphrase})
 	}
 	return fs
 }
@@ -60,7 +71,7 @@ func secretFields(cfg *conn.ConnectionConfig) []secretField {
 func allSecretFields(cfg *conn.ConnectionConfig) []secretField {
 	if cfg.SSH == nil {
 		var empty1, empty2 string
-		return []secretField{{"password", &cfg.Password}, {"ssh-password", &empty1}, {"ssh-passphrase", &empty2}}
+		return []secretField{{SecretPassword, &cfg.Password}, {SecretSSHPassword, &empty1}, {SecretSSHPassphrase, &empty2}}
 	}
 	return secretFields(cfg)
 }

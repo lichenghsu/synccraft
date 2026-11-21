@@ -33,19 +33,31 @@ export function ConnectionsPage() {
       <aside className="card conn-list">
         <div className="row between">
           <h2>Connections</h2>
-          <button type="button" className="ghost small" onClick={() => open(newForm())}>
+          <button
+            type="button"
+            className="ghost small"
+            onClick={() => open(newForm())}
+          >
             + New
           </button>
         </div>
         {loadError && <p className="err">{loadError}</p>}
-        {!loadError && saved.length === 0 && <p className="hint">No saved connections yet.</p>}
+        {!loadError && saved.length === 0 && (
+          <p className="hint">No saved connections yet.</p>
+        )}
         <ul>
           {saved.map((c) => (
             <li key={c.id}>
-              <button type="button" className={`item ${form.id === c.id ? "on" : ""}`} onClick={() => open(formFromSaved(c))}>
+              <button
+                type="button"
+                className={`item ${form.id === c.id ? "on" : ""}`}
+                onClick={() => open(formFromSaved(c))}
+              >
                 <span className="name">{c.name}</span>
                 <span className="meta">
-                  {DB_LABEL[c.config.type]} · {c.config.filePath || `${c.config.host}${c.config.database ? "/" + c.config.database : ""}`}
+                  {DB_LABEL[c.config.type]} ·{" "}
+                  {c.config.filePath ||
+                    `${c.config.host}${c.config.database ? "/" + c.config.database : ""}`}
                 </span>
               </button>
             </li>

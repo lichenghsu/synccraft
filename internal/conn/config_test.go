@@ -274,6 +274,41 @@ func TestValidatePaths(t *testing.T) {
 	}
 }
 
+func TestValidateSocket(t *testing.T) {
+	tunnel := &SSHTunnel{Host: "bastion", User: "ops", Auth: SSHAuthAgent}
+	ok := map[string]ConnectionConfig{
+		"mysql":    {Type: MySQL, User: "root", SocketPath: "/run/mysqld/mysqld.sock", SSH: tunnel},
+		"postgres": {Type: PostgreSQL, User: "postgres", SocketPath: "/var/run/postgresql", SSH: tunnel},
+	}
+	for name, c := range ok {
+		if err := c.Validate(); err != nil {
+			t.Errorf("%s: Validate() = %v, want nil (no host needed)", name, err)
+		}
+	}
+
+	bad := map[string]struct {
+		cfg  ConnectionConfig
+		want error
+	}{
+		"no tunnel": {ConnectionConfig{Type: MySQL, User: "root", SocketPath: "/run/mysqld/mysqld.sock"}, ErrUnsupportedOption},
+		"sqlserver": {ConnectionConfig{Type: SQLServer, User: "sa", SocketPath: "/tmp/x", SSH: tunnel}, ErrUnsupportedOption},
+		"relative":  {ConnectionConfig{Type: MySQL, User: "root", SocketPath: "mysqld.sock", SSH: tunnel}, ErrInvalidPath},
+		"traversal": {ConnectionConfig{Type: MySQL, User: "root", SocketPath: "/run/../tmp/x.sock", SSH: tunnel}, ErrInvalidPath},
+		"tls":       {ConnectionConfig{Type: PostgreSQL, User: "p", SocketPath: "/var/run/postgresql", SSH: tunnel, TLS: &TLSFiles{CACertPath: "/ca.pem"}}, ErrUnsupportedOption},
+	}
+	for name, tt := range bad {
+		if err := tt.cfg.Validate(); !errors.Is(err, tt.want) {
+			t.Errorf("%s: Validate() = %v, want %v", name, err, tt.want)
+		}
+	}
+
+	// The socket lives on the SSH server: it must not go through the local file allowlist.
+	c := ok["mysql"]
+	if paths := c.FilePaths(); len(paths) != 0 {
+		t.Errorf("FilePaths() = %v, socket path must not be included", paths)
+	}
+}
+
 func with(c ConnectionConfig, f func(*ConnectionConfig)) ConnectionConfig {
 	f(&c)
 	return c

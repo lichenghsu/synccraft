@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -29,6 +30,11 @@ type ConnectionConfig struct {
 	Password string `json:"password"`
 	Database string `json:"database"`
 	FilePath string `json:"filePath,omitempty"`
+
+	// SocketPath reaches MySQL / PostgreSQL through a Unix socket on the SSH
+	// server instead of Host:Port (PostgreSQL: the socket directory). It is a
+	// path on the remote machine, so it is not part of FilePaths.
+	SocketPath string `json:"socketPath,omitempty"`
 
 	SSLMode                string `json:"sslMode,omitempty"`
 	TrustServerCertificate bool   `json:"trustServerCertificate,omitempty"`
@@ -129,12 +135,16 @@ func (c *ConnectionConfig) Validate() error {
 		return nil
 	}
 
-	if strings.TrimSpace(c.Host) == "" {
+	if c.SocketPath != "" {
+		if err := c.validateSocket(); err != nil {
+			return err
+		}
+	} else if strings.TrimSpace(c.Host) == "" {
 		return fmt.Errorf("%w: host", ErrMissingField)
 	}
 
 	if strings.TrimSpace(c.User) == "" {
-		return fmt.Errorf("%w: user", ErrMissingField)
+		return fmt.Errorf("%w: user (database user)", ErrMissingField)
 	}
 
 	if c.Port < 0 || c.Port > 65535 {
@@ -162,12 +172,28 @@ func (c *ConnectionConfig) Validate() error {
 	return nil
 }
 
+func (c *ConnectionConfig) validateSocket() error {
+	if c.SSH == nil {
+		return fmt.Errorf("%w: a socket path needs an ssh tunnel", ErrUnsupportedOption)
+	}
+	if c.Type != MySQL && c.Type != PostgreSQL {
+		return fmt.Errorf("%w: unix socket with %s", ErrUnsupportedOption, c.Type)
+	}
+	if !strings.HasPrefix(c.SocketPath, "/") || path.Clean(c.SocketPath) != c.SocketPath {
+		return fmt.Errorf("%w: %q", ErrInvalidPath, c.SocketPath)
+	}
+	if c.TLS != nil {
+		return fmt.Errorf("%w: tls over a unix socket", ErrUnsupportedOption)
+	}
+	return nil
+}
+
 func (s *SSHTunnel) validate() error {
 	if strings.TrimSpace(s.Host) == "" {
-		return fmt.Errorf("%w: ssh.host", ErrMissingField)
+		return fmt.Errorf("%w: ssh.host (SSH host)", ErrMissingField)
 	}
 	if strings.TrimSpace(s.User) == "" {
-		return fmt.Errorf("%w: ssh.user", ErrMissingField)
+		return fmt.Errorf("%w: ssh.user (SSH user)", ErrMissingField)
 	}
 	if s.Port < 0 || s.Port > 65535 {
 		return fmt.Errorf("%w: ssh.port", ErrInvalidPort)

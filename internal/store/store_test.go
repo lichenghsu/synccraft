@@ -57,7 +57,7 @@ func TestSaveCreatesAndKeepsSecretsOutOfFile(t *testing.T) {
 	s, sec, path := newTestStore(t)
 	cfg := pgWithSSH()
 
-	saved, err := s.Save(Connection{Name: "  prod  ", Config: cfg}, false)
+	saved, err := s.Save(Connection{Name: "  prod  ", Config: cfg}, nil)
 	if err != nil {
 		t.Fatalf("Save() = %v", err)
 	}
@@ -87,7 +87,7 @@ func TestSaveCreatesAndKeepsSecretsOutOfFile(t *testing.T) {
 
 func TestFilePermissions(t *testing.T) {
 	s, _, path := newTestStore(t)
-	if _, err := s.Save(Connection{Name: "x", Config: pgWithSSH()}, true); err != nil {
+	if _, err := s.Save(Connection{Name: "x", Config: pgWithSSH()}, AllSecrets()); err != nil {
 		t.Fatal(err)
 	}
 	fi, err := os.Stat(path)
@@ -115,7 +115,7 @@ func TestListAndGet(t *testing.T) {
 		t.Fatalf("List() on missing file = %v, %v; want empty non-nil", empty, err)
 	}
 
-	saved, _ := s.Save(Connection{Name: "prod", Config: pgWithSSH()}, false)
+	saved, _ := s.Save(Connection{Name: "prod", Config: pgWithSSH()}, nil)
 	list, err := s.List()
 	if err != nil || len(list) != 1 {
 		t.Fatalf("List() = %v, %v", list, err)
@@ -140,40 +140,49 @@ func TestListAndGet(t *testing.T) {
 	}
 }
 
-func TestUpdateSecretsFlag(t *testing.T) {
+func TestSaveUpdatesOnlyNamedSecrets(t *testing.T) {
 	s, _, _ := newTestStore(t)
-	saved, _ := s.Save(Connection{Name: "prod", Config: pgWithSSH()}, false)
+	saved, _ := s.Save(Connection{Name: "prod", Config: pgWithSSH()}, nil)
 
 	// Frontend edits the name only: it has no secrets to send back.
 	edit := saved
 	edit.Name = "production"
-	if _, err := s.Save(edit, false); err != nil {
+	if _, err := s.Save(edit, nil); err != nil {
 		t.Fatal(err)
 	}
 	full, _ := s.Get(saved.ID)
-	if full.Password != "db-secret" {
-		t.Errorf("updateSecrets=false lost the password: %q", full.Password)
+	if full.Password != "db-secret" || full.SSH.Password != "ssh-secret" {
+		t.Errorf("empty update list lost secrets: %q %q", full.Password, full.SSH.Password)
 	}
 
-	// Explicitly set an empty password (e.g. local root without password).
-	edit.Config.Password = ""
-	if _, err := s.Save(edit, true); err != nil {
+	// Only the DB password was retyped; the SSH secrets must survive.
+	edit.Config.Password = "new-db"
+	if _, err := s.Save(edit, []string{SecretPassword}); err != nil {
 		t.Fatal(err)
 	}
 	full, _ = s.Get(saved.ID)
-	if full.Password != "" {
-		t.Errorf("updateSecrets=true with empty password kept %q", full.Password)
+	if full.Password != "new-db" || full.SSH.Password != "ssh-secret" || full.SSH.Passphrase != "key-secret" {
+		t.Errorf("after password update: %q %q %q", full.Password, full.SSH.Password, full.SSH.Passphrase)
+	}
+
+	// Explicitly clear the passphrase.
+	if _, err := s.Save(edit, []string{SecretSSHPassphrase}); err != nil {
+		t.Fatal(err)
+	}
+	full, _ = s.Get(saved.ID)
+	if full.SSH.Passphrase != "" || full.Password != "new-db" {
+		t.Errorf("after clearing passphrase: %q %q", full.SSH.Passphrase, full.Password)
 	}
 }
 
 func TestRemovingTunnelDeletesSSHSecrets(t *testing.T) {
 	s, sec, _ := newTestStore(t)
-	saved, _ := s.Save(Connection{Name: "prod", Config: pgWithSSH()}, false)
+	saved, _ := s.Save(Connection{Name: "prod", Config: pgWithSSH()}, nil)
 
 	edit := saved
 	edit.Config.SSH = nil
 	edit.Config.Password = "db-secret"
-	if _, err := s.Save(edit, true); err != nil {
+	if _, err := s.Save(edit, AllSecrets()); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := sec.m[saved.ID+"/ssh-passphrase"]; ok {
@@ -183,18 +192,18 @@ func TestRemovingTunnelDeletesSSHSecrets(t *testing.T) {
 
 func TestSaveErrors(t *testing.T) {
 	s, _, _ := newTestStore(t)
-	if _, err := s.Save(Connection{Name: "  ", Config: pgWithSSH()}, false); !errors.Is(err, ErrMissingName) {
+	if _, err := s.Save(Connection{Name: "  ", Config: pgWithSSH()}, nil); !errors.Is(err, ErrMissingName) {
 		t.Errorf("blank name = %v, want ErrMissingName", err)
 	}
-	if _, err := s.Save(Connection{ID: "ghost", Name: "x", Config: pgWithSSH()}, false); !errors.Is(err, ErrNotFound) {
+	if _, err := s.Save(Connection{ID: "ghost", Name: "x", Config: pgWithSSH()}, nil); !errors.Is(err, ErrNotFound) {
 		t.Errorf("unknown ID = %v, want ErrNotFound", err)
 	}
 }
 
 func TestDelete(t *testing.T) {
 	s, sec, _ := newTestStore(t)
-	a, _ := s.Save(Connection{Name: "a", Config: pgWithSSH()}, false)
-	b, _ := s.Save(Connection{Name: "b", Config: pgWithSSH()}, false)
+	a, _ := s.Save(Connection{Name: "a", Config: pgWithSSH()}, nil)
+	b, _ := s.Save(Connection{Name: "b", Config: pgWithSSH()}, nil)
 
 	if err := s.Delete(a.ID); err != nil {
 		t.Fatalf("Delete() = %v", err)
@@ -226,7 +235,7 @@ func TestLoadErrorsDoNotOverwrite(t *testing.T) {
 			if _, err := s.List(); err == nil {
 				t.Fatal("List() should fail")
 			}
-			if _, err := s.Save(Connection{Name: "x", Config: pgWithSSH()}, true); err == nil {
+			if _, err := s.Save(Connection{Name: "x", Config: pgWithSSH()}, AllSecrets()); err == nil {
 				t.Fatal("Save() should fail instead of overwriting the file")
 			}
 			raw, _ := os.ReadFile(path)

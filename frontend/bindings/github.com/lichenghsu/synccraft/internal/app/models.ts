@@ -16,9 +16,9 @@ export interface ConnectionDraft {
     "config": conn$0.ConnectionConfig;
 
     /**
-     * false: use the stored passwords
+     * secret names typed in the form; others come from the keychain
      */
-    "updateSecrets": boolean;
+    "updateSecrets": string[] | null;
 }
 
 /**

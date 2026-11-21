@@ -3,7 +3,7 @@ services:
     image: docker.io/library/mysql:8.4
     environment: { MYSQL_ROOT_PASSWORD: root, MYSQL_DATABASE: shop }
     ports: ["3306:3306"]
-    volumes: ["./seed/mysql-src:/docker-entrypoint-initdb.d:ro,z"]
+    volumes: ["./seed/mysql-src:/docker-entrypoint-initdb.d:ro,z", "mysql-src-sock:/var/run/mysqld:z"]
   mysql-dst:
     image: docker.io/library/mysql:8.4
     environment: { MYSQL_ROOT_PASSWORD: root, MYSQL_DATABASE: shop }
@@ -13,7 +13,7 @@ services:
     image: docker.io/library/postgres:17
     environment: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: shop }
     ports: ["5432:5432"]
-    volumes: ["./seed/pg-src:/docker-entrypoint-initdb.d:ro,z"]
+    volumes: ["./seed/pg-src:/docker-entrypoint-initdb.d:ro,z", "pg-src-sock:/var/run/postgresql:z"]
   pg-dst:
     image: docker.io/library/postgres:17
     environment: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: shop }
@@ -23,3 +23,15 @@ services:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment: { ACCEPT_EULA: "Y", MSSQL_SA_PASSWORD: "Passw0rd!" }
     ports: ["1433:1433"]
+  ssh-bastion:
+    build: ./ssh
+    ports: ["2222:22"]
+    # The databases' Unix sockets, for "Unix socket over SSH" tests. ":z" shares
+    # the SELinux label between containers; the databases mount the volumes
+    # first so the volumes get the images' directory permissions.
+    volumes: ["mysql-src-sock:/run/mysql-src:z", "pg-src-sock:/run/pg-src:z"]
+    depends_on: [mysql-src, pg-src]
+
+volumes:
+  mysql-src-sock: {}
+  pg-src-sock: {}

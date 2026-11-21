@@ -12,6 +12,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as conn$0 from "../conn/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as store$0 from "../store/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -23,6 +26,13 @@ import * as $models from "./models.js";
  */
 export function DeleteConnection(id: string): $CancellablePromise<void> {
     return $Call.ByID(3523121624, id);
+}
+
+/**
+ * DetectSocket finds the database's Unix socket on the draft's SSH server.
+ */
+export function DetectSocket(d: $models.ConnectionDraft): $CancellablePromise<string> {
+    return $Call.ByID(1752382437, d);
 }
 
 /**
@@ -47,23 +57,24 @@ export function ListSavedDatabases(id: string): $CancellablePromise<string[] | n
 }
 
 /**
- * SaveConnection creates (empty id) or updates a saved connection.
- * Passwords in c.Config are stored only when creating or when updateSecrets is true.
+ * SaveConnection creates (empty id) or updates a saved connection. When updating,
+ * only the secrets named in updateSecrets are written; the others are kept.
  */
-export function SaveConnection(c: store$0.Connection, updateSecrets: boolean): $CancellablePromise<store$0.Connection> {
+export function SaveConnection(c: store$0.Connection, updateSecrets: string[] | null): $CancellablePromise<store$0.Connection> {
     return $Call.ByID(3716781306, c, updateSecrets);
 }
 
 /**
- * TestConnection opens the draft's config, pings it and closes it without caching.
+ * TestConnection connects with the draft's config, identifies the server and
+ * disconnects without caching.
  */
-export function TestConnection(d: $models.ConnectionDraft): $CancellablePromise<void> {
+export function TestConnection(d: $models.ConnectionDraft): $CancellablePromise<conn$0.ServerInfo> {
     return $Call.ByID(3675891343, d);
 }
 
 /**
  * TestSavedConnection tests a saved connection using its stored passwords.
  */
-export function TestSavedConnection(id: string): $CancellablePromise<void> {
+export function TestSavedConnection(id: string): $CancellablePromise<conn$0.ServerInfo> {
     return $Call.ByID(1838971926, id);
 }

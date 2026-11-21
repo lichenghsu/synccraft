@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
@@ -99,9 +100,10 @@ func (s *Store) Get(id string) (conn.ConnectionConfig, error) {
 }
 
 // Save creates (empty ID) or updates a connection and returns it without secrets.
-// Secrets in c.Config are written when creating or when updateSecrets is true;
-// otherwise the stored secrets are kept. An empty secret deletes it.
-func (s *Store) Save(c Connection, updateSecrets bool) (Connection, error) {
+// When creating, every secret in c.Config is written. When updating, only the
+// secrets named in update are written (an empty value deletes it); the others
+// keep their stored value. SSH secrets are always deleted when the tunnel is removed.
+func (s *Store) Save(c Connection, update []string) (Connection, error) {
 	c.Name = strings.TrimSpace(c.Name)
 	if c.Name == "" {
 		return Connection{}, ErrMissingName
@@ -118,15 +120,13 @@ func (s *Store) Save(c Connection, updateSecrets bool) (Connection, error) {
 	i := -1
 	if c.ID == "" {
 		c.ID = newID()
-		updateSecrets = true
+		update = secretNames
 	} else if i = indexOf(data.Connections, c.ID); i < 0 {
 		return Connection{}, fmt.Errorf("%w: %q", ErrNotFound, c.ID)
 	}
 
-	if updateSecrets {
-		if err := s.writeSecrets(c.ID, c.Config); err != nil {
-			return Connection{}, err
-		}
+	if err := s.writeSecrets(c.ID, c.Config, update); err != nil {
+		return Connection{}, err
 	}
 
 	saved := Connection{ID: c.ID, Name: c.Name, Config: withoutSecrets(c.Config)}
@@ -161,9 +161,13 @@ func (s *Store) Delete(id string) error {
 	return s.deleteSecrets(id)
 }
 
-func (s *Store) writeSecrets(id string, cfg conn.ConnectionConfig) error {
+func (s *Store) writeSecrets(id string, cfg conn.ConnectionConfig, update []string) error {
 	cfg = copyConfig(cfg)
 	for _, f := range allSecretFields(&cfg) {
+		orphaned := cfg.SSH == nil && f.name != SecretPassword
+		if !orphaned && !slices.Contains(update, f.name) {
+			continue
+		}
 		key := secretKey(id, f.name)
 		var err error
 		if *f.ptr == "" {

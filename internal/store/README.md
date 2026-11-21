@@ -34,8 +34,8 @@ A file that doesn't parse or has an unknown `version` makes every call fail. It 
 ## Saving
 
 - Empty `ID` creates a connection with a random ID; otherwise the ID must exist.
-- Secrets are written when creating, or when `updateSecrets` is true. With `false` the stored secrets are kept, so the frontend can edit a connection without ever holding its password. With `true`, an empty value deletes the secret (e.g. local root without password).
-- Removing the SSH tunnel deletes its secrets.
+- `Save(c, update)`: when creating, every secret is written. When updating, only the secrets named in `update` (`SecretPassword`, `SecretSSHPassword`, `SecretSSHPassphrase`) are written, and an empty value deletes it (e.g. local root without password). Unlisted secrets keep their stored value, so the frontend can edit a connection without ever holding its passwords, and retyping the DB password doesn't touch the SSH ones.
+- Removing the SSH tunnel always deletes its secrets.
 - Writes are atomic: temp file in the same directory, `fsync`, `rename`.
 
 ## Tests

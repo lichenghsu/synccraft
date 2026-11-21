@@ -49,18 +49,23 @@ func (c ConnectionConfig) hostPort() string {
 	return net.JoinHostPort(c.Host, strconv.Itoa(c.port()))
 }
 
-// TLS files are not applied here: MySQL needs a registered tls.Config,
-// which is done when the pool opens the connection.
 func mysqlDSN(c ConnectionConfig) string {
+	return mysqlConfig(c).FormatDSN()
+}
+
+// TLS files and the SSH dialer are added by openDB; they don't fit in a DSN.
+func mysqlConfig(c ConnectionConfig) *mysql.Config {
 	cfg := mysql.NewConfig()
 	cfg.User = c.User
 	cfg.Passwd = c.Password
-	cfg.Net = "tcp"
-	cfg.Addr = c.hostPort()
+	cfg.Net, cfg.Addr = "tcp", c.hostPort()
+	if c.SocketPath != "" {
+		cfg.Net, cfg.Addr = "unix", c.SocketPath
+	}
 	cfg.DBName = c.Database
 	cfg.ParseTime = true
 	_ = cfg.Apply(mysql.Charset("utf8mb4", "")) // only fails on unsafe collation + interpolateParams
-	return cfg.FormatDSN()
+	return cfg
 }
 
 func postgresDSN(c ConnectionConfig) string {
@@ -77,10 +82,18 @@ func postgresDSN(c ConnectionConfig) string {
 		setIf(q, "sslkey", t.ClientKeyPath)
 	}
 
+	host := c.hostPort()
+	if c.SocketPath != "" {
+		// pgx treats an absolute host as a socket directory: <dir>/.s.PGSQL.<port>.
+		host = ""
+		q.Set("host", c.SocketPath)
+		q.Set("port", strconv.Itoa(c.port()))
+	}
+
 	u := url.URL{
 		Scheme:   "postgres",
 		User:     url.UserPassword(c.User, c.Password),
-		Host:     c.hostPort(),
+		Host:     host,
 		Path:     "/" + c.Database,
 		RawQuery: q.Encode(),
 	}

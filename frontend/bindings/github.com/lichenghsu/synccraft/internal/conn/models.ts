@@ -12,6 +12,13 @@ export interface ConnectionConfig {
     "password": string;
     "database": string;
     "filePath"?: string;
+
+    /**
+     * SocketPath reaches MySQL / PostgreSQL through a Unix socket on the SSH
+     * server instead of Host:Port (PostgreSQL: the socket directory). It is a
+     * path on the remote machine, so it is not part of FilePaths.
+     */
+    "socketPath"?: string;
     "sslMode"?: string;
     "trustServerCertificate"?: boolean;
 
@@ -79,6 +86,28 @@ export interface SSHTunnel {
      * "" = ~/.ssh/known_hosts
      */
     "knownHostsPath"?: string;
+}
+
+/**
+ * ServerInfo identifies the database server behind a connection. MariaDB is
+ * reported separately even though it shares the MySQL type, because its SQL
+ * dialect differs.
+ */
+export interface ServerInfo {
+    /**
+     * MySQL, MariaDB, PostgreSQL, SQL Server, SQLite
+     */
+    "product": string;
+
+    /**
+     * e.g. 10.11.6
+     */
+    "version": string;
+
+    /**
+     * the server's full version string
+     */
+    "raw": string;
 }
 
 /**

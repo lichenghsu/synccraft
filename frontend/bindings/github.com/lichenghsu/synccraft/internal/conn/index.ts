@@ -9,5 +9,6 @@ export {
 export type {
     ConnectionConfig,
     SSHTunnel,
+    ServerInfo,
     TLSFiles
 } from "./models.js";
