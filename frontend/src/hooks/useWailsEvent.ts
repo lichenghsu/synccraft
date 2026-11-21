@@ -10,5 +10,6 @@ export function useWailsEvent<E extends keyof CustomEvents>(
   const ref = useRef(handler);
   ref.current = handler;
 
-  useEffect(() => Events.On(name, (ev) => ref.current(ev.data)), [name]);
+  // The cast keeps this compiling while no custom events are registered.
+  useEffect(() => Events.On(name, (ev) => ref.current(ev.data as CustomEvents[E])), [name]);
 }

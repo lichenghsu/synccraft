@@ -8,9 +8,10 @@ React 19 + TypeScript 7 + Vite 8. Driven by `wails3 dev` / `wails3 build`; you r
 frontend/
 ├── bindings/        # generated from Go, do not edit (commit it; CI checks it is in sync)
 │   ├── events/      #   event name constants
-│   └── github.com/lichenghsu/synccraft/internal/app/   # Service functions and types
+│   └── github.com/lichenghsu/synccraft/internal/   # app/ services, conn/ and store/ types
 ├── src/
 │   ├── api/         # wrappers around the Go bindings (see api/README.md)
+│   ├── features/    # one folder per screen (see each README.md)
 │   ├── hooks/       # shared React hooks (see hooks/README.md)
 │   ├── types.ts     # frontend-only types
 │   ├── App.tsx
@@ -23,8 +24,8 @@ frontend/
 
 | Alias | Points to | Usage |
 |---|---|---|
-| `@bindings/*` | `bindings/github.com/lichenghsu/synccraft/*` | `import { HelloService } from "@bindings/internal/app"` |
-| `@events` | `bindings/events` | `import { CountTick } from "@events"` |
+| `@bindings/*` | `bindings/github.com/lichenghsu/synccraft/*` | `import { ConnectionService } from "@bindings/internal/app"` |
+| `@events` | `bindings/events` | Event name constants (none registered yet) |
 
 Aliases must be set in **both `tsconfig.json` (type checking) and `vite.config.ts` (bundling)**. TypeScript 7 removed `baseUrl`; `paths` resolve relative to the tsconfig file.
 

@@ -7,20 +7,20 @@ Wrappers around the Go bindings. **Components import only from here, never from 
 | Export | Description |
 |---|---|
 | `api` | Thin wrappers around each Service method |
-| `FileKind` | Re-exported enum for `api.pickFile` |
-| `Connection`, `ConnectionConfig` | Re-exported types for the connection APIs |
+| `DBType`, `FileKind` | Re-exported enums |
+| `Connection`, `ConnectionConfig`, `ConnectionDraft`, `TLSFiles` | Re-exported types for the connection APIs |
 | `arr(x)` | Go nil slices serialize to `null`; normalizes them to `[]` |
 | `isCancel(e)` | Whether the error is a user-initiated cancel (`CancelError`) |
 | `errMsg(e)` | Turns any error into a displayable string; errors returned from Go become an `Error` with `message` |
 
 ## Cancellation
 
-Service methods return a `CancellablePromise`. For calls that need cancelling (e.g. `api.count`), **return the original promise directly; do not wrap it in `async`**: an `async` function returns a plain `Promise` and `.cancel()` is lost.
+Service methods return a `CancellablePromise`. For calls that need cancelling (e.g. `api.testConnection`), **return the original promise directly; do not wrap it in `async`**: an `async` function returns a plain `Promise` and `.cancel()` is lost.
 
 Calls that don't need cancelling but must handle nil slices can be wrapped in `async`:
 
 ```ts
-getDatabases: async (c: ConnectionConfig) => arr(await ConnService.GetDatabases(c)),
+listSaved: async () => arr(await ConnectionService.ListSaved()),
 ```
 
 ## File paths
@@ -33,7 +33,7 @@ The backend rejects any path that did not come from `pickFile` (or from the save
 
 | Call | When |
 |---|---|
-| `testConnection(cfg)`, `listDatabases(cfg)` | An unsaved config typed into the form (password included) |
+| `testConnection(draft)`, `listDatabases(draft)` | What the form currently holds. For an edited saved connection with `updateSecrets: false`, the backend fills in the stored passwords |
 | `listSaved()` | Saved connections, **without passwords** |
 | `saveConnection(c, updateSecrets)` | Create (`c.id === ""`) or update. Pass `updateSecrets: true` only when the user edited a password field; `false` keeps the stored passwords |
 | `testSaved(id)`, `listSavedDatabases(id)`, `deleteConnection(id)` | Saved connections, by id; the backend fills in the passwords |

@@ -25,7 +25,6 @@ func main() {
 		Name:        "SyncCraft",
 		Description: "Database schema & data compare tool",
 		Services: []application.Service{
-			application.NewService(app.NewHelloService()),
 			application.NewService(files),
 			application.NewService(connections),
 		},

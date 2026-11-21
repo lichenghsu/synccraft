@@ -27,10 +27,10 @@ func TestConnectionServiceRejectsUnpickedPath(t *testing.T) {
 	cfg := conn.ConnectionConfig{Type: conn.SQLite, FilePath: path}
 	ctx := context.Background()
 
-	if err := s.TestConnection(ctx, cfg); !errors.Is(err, ErrPathNotPicked) {
+	if err := s.TestConnection(ctx, ConnectionDraft{Config: cfg}); !errors.Is(err, ErrPathNotPicked) {
 		t.Errorf("TestConnection(unpicked) = %v, want ErrPathNotPicked", err)
 	}
-	if _, err := s.ListDatabases(ctx, cfg); !errors.Is(err, ErrPathNotPicked) {
+	if _, err := s.ListDatabases(ctx, ConnectionDraft{Config: cfg}); !errors.Is(err, ErrPathNotPicked) {
 		t.Errorf("ListDatabases(unpicked) = %v, want ErrPathNotPicked", err)
 	}
 	if s.pool.Len() != 0 {
@@ -48,14 +48,14 @@ func TestConnectionServiceSQLite(t *testing.T) {
 	}
 	cfg := conn.ConnectionConfig{Type: conn.SQLite, FilePath: path}
 
-	if err := s.TestConnection(ctx, cfg); err != nil {
+	if err := s.TestConnection(ctx, ConnectionDraft{Config: cfg}); err != nil {
 		t.Fatalf("TestConnection() = %v", err)
 	}
 	if s.pool.Len() != 0 {
 		t.Error("TestConnection must not cache")
 	}
 
-	dbs, err := s.ListDatabases(ctx, cfg)
+	dbs, err := s.ListDatabases(ctx, ConnectionDraft{Config: cfg})
 	if err != nil || len(dbs) != 1 || dbs[0] != "main" {
 		t.Fatalf("ListDatabases() = %v, %v; want [main]", dbs, err)
 	}
@@ -74,7 +74,7 @@ func TestConnectionServiceSQLite(t *testing.T) {
 func TestConnectionServiceNoFilesSkipsCheck(t *testing.T) {
 	s, _ := newTestConnectionService(t)
 	// No file paths: the path check passes and the error comes from validation.
-	err := s.TestConnection(context.Background(), conn.ConnectionConfig{Type: conn.MySQL})
+	err := s.TestConnection(context.Background(), ConnectionDraft{Config: conn.ConnectionConfig{Type: conn.MySQL}})
 	if !errors.Is(err, conn.ErrMissingField) {
 		t.Fatalf("TestConnection(invalid) = %v, want ErrMissingField", err)
 	}
@@ -125,13 +125,13 @@ func TestListSavedAllowsStoredPaths(t *testing.T) {
 	// Simulate an app restart: same store, fresh allowlist.
 	files, _ := newTestFileService("", nil)
 	restarted := NewConnectionService(files, s.store)
-	if err := restarted.TestConnection(context.Background(), cfg); !errors.Is(err, ErrPathNotPicked) {
+	if err := restarted.TestConnection(context.Background(), ConnectionDraft{Config: cfg}); !errors.Is(err, ErrPathNotPicked) {
 		t.Fatalf("before ListSaved: %v, want ErrPathNotPicked", err)
 	}
 	if _, err := restarted.ListSaved(); err != nil {
 		t.Fatal(err)
 	}
-	if err := restarted.TestConnection(context.Background(), cfg); err != nil {
+	if err := restarted.TestConnection(context.Background(), ConnectionDraft{Config: cfg}); err != nil {
 		t.Fatalf("after ListSaved: %v, want nil", err)
 	}
 }
@@ -164,5 +164,40 @@ func TestSaveConnectionClosesOldPoolEntry(t *testing.T) {
 	}
 	if s.pool.Len() != 0 {
 		t.Errorf("old pooled connection not closed: Len() = %d", s.pool.Len())
+	}
+}
+
+func TestDraftUsesStoredSecrets(t *testing.T) {
+	s, _ := newTestConnectionService(t)
+	stored := conn.ConnectionConfig{Type: conn.MySQL, Host: "db", User: "app", Password: "stored-pw",
+		SSH: &conn.SSHTunnel{Host: "b", User: "u", Auth: conn.SSHAuthPassword, Password: "stored-ssh"}}
+	saved, err := s.SaveConnection(store.Connection{Name: "x", Config: stored}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The form only knows the stripped config and edits the host.
+	edited := saved.Config
+	edited.Host = "db2"
+
+	cfg, err := s.resolve(ConnectionDraft{ID: saved.ID, Config: edited})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Host != "db2" || cfg.Password != "stored-pw" || cfg.SSH.Password != "stored-ssh" {
+		t.Errorf("resolve() = host %q pw %q ssh %q", cfg.Host, cfg.Password, cfg.SSH.Password)
+	}
+	if edited.SSH.Password != "" {
+		t.Error("resolve must not mutate the draft's SSH struct")
+	}
+
+	edited.Password = "typed-pw"
+	cfg, _ = s.resolve(ConnectionDraft{ID: saved.ID, Config: edited, UpdateSecrets: true})
+	if cfg.Password != "typed-pw" {
+		t.Errorf("UpdateSecrets=true should use the typed password, got %q", cfg.Password)
+	}
+
+	if _, err := s.resolve(ConnectionDraft{ID: "ghost", Config: edited}); !errors.Is(err, store.ErrNotFound) {
+		t.Errorf("unknown id = %v, want ErrNotFound", err)
 	}
 }

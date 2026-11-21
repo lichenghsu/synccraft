@@ -12,10 +12,11 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as conn$0 from "../conn/models.js";
+import * as store$0 from "../store/models.js";
+
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as store$0 from "../store/models.js";
+import * as $models from "./models.js";
 
 /**
  * DeleteConnection removes a saved connection and its passwords.
@@ -25,10 +26,10 @@ export function DeleteConnection(id: string): $CancellablePromise<void> {
 }
 
 /**
- * ListDatabases returns the non-system databases on the server in cfg.
+ * ListDatabases returns the non-system databases on the draft's server.
  */
-export function ListDatabases(cfg: conn$0.ConnectionConfig): $CancellablePromise<string[] | null> {
-    return $Call.ByID(103091767, cfg);
+export function ListDatabases(d: $models.ConnectionDraft): $CancellablePromise<string[] | null> {
+    return $Call.ByID(103091767, d);
 }
 
 /**
@@ -54,10 +55,10 @@ export function SaveConnection(c: store$0.Connection, updateSecrets: boolean): $
 }
 
 /**
- * TestConnection opens cfg, pings it and closes it without caching.
+ * TestConnection opens the draft's config, pings it and closes it without caching.
  */
-export function TestConnection(cfg: conn$0.ConnectionConfig): $CancellablePromise<void> {
-    return $Call.ByID(3675891343, cfg);
+export function TestConnection(d: $models.ConnectionDraft): $CancellablePromise<void> {
+    return $Call.ByID(3675891343, d);
 }
 
 /**
