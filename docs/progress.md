@@ -27,9 +27,10 @@
 - [x] Drivers registered: `go-sql-driver/mysql`, `pgx/v5`, `microsoft/go-mssqldb`, `modernc.org/sqlite`
 - [x] Structured DSN builders for all four drivers (`mysql.Config`, `net/url`), PG / SQL Server TLS file parameters
 - [x] `FileService`: file paths only via native dialogs (backend allowlist, `PickFile`), `Validate` rejects relative / unclean paths
-- [ ] `Pool`: cache `*sql.DB`, ping timeout, close on `ServiceShutdown`; `TestConnection` that pings without caching
+- [x] `Pool`: cache `*sql.DB`, ping timeout, close on `ServiceShutdown`; `Ping` without caching; integration tests against `dev/docker-compose.yml`
 - [ ] SSH tunnel (`golang.org/x/crypto/ssh` + known_hosts) and MySQL TLS (`mysql.RegisterTLSConfig`)
-- [ ] `ConnectionService` (Wails): `TestConnection`, `ListDatabases`; remove `HelloService`
+- [x] `ConnectionService` (Wails): `TestConnection`, `ListDatabases` (both enforce `checkPaths`)
+- [ ] Remove `HelloService` (together with the React connection form)
 - [ ] Store: `os.UserConfigDir` + OS keychain + atomic writes
 - [ ] React: `ConnectionsProvider`, `ConnectionForm`, saved-connection dropdown, native file dialog for SQLite
 - **Acceptance**: all four databases connect and list their databases; passwords never appear in the JSON file or DevTools

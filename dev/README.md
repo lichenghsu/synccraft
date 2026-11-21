@@ -9,6 +9,8 @@ podman compose -f dev/docker-compose.yml up -d     # or docker compose (needs th
 podman compose -f dev/docker-compose.yml down -v   # also deletes data; the next up re-imports seeds
 ```
 
+Images use fully qualified names (`docker.io/library/...`) because podman refuses short names without a TTY.
+
 `seed/<service>/*.sql` is imported automatically on the container's **first** start (`docker-entrypoint-initdb.d`). After editing seeds, run `down -v` to re-import.
 
 ## Connection details
