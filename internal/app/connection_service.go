@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"slices"
 
 	"github.com/lichenghsu/synccraft/internal/conn"
 	"github.com/lichenghsu/synccraft/internal/store"
@@ -22,16 +23,17 @@ func NewConnectionService(files *FileService, st *store.Store) *ConnectionServic
 type ConnectionDraft struct {
 	ID            string                `json:"id"` // saved connection being edited; "" if new
 	Config        conn.ConnectionConfig `json:"config"`
-	UpdateSecrets bool                  `json:"updateSecrets"` // false: use the stored passwords
+	UpdateSecrets []string              `json:"updateSecrets"` // secret names typed in the form; others come from the keychain
 }
 
-// TestConnection opens the draft's config, pings it and closes it without caching.
-func (s *ConnectionService) TestConnection(ctx context.Context, d ConnectionDraft) error {
+// TestConnection connects with the draft's config, identifies the server and
+// disconnects without caching.
+func (s *ConnectionService) TestConnection(ctx context.Context, d ConnectionDraft) (conn.ServerInfo, error) {
 	cfg, err := s.resolve(d)
 	if err != nil {
-		return err
+		return conn.ServerInfo{}, err
 	}
-	return conn.Ping(ctx, cfg)
+	return conn.Probe(ctx, cfg)
 }
 
 // ListDatabases returns the non-system databases on the draft's server.
@@ -50,7 +52,7 @@ func (s *ConnectionService) resolve(d ConnectionDraft) (conn.ConnectionConfig, e
 	if err := s.files.checkPaths(&cfg); err != nil {
 		return conn.ConnectionConfig{}, err
 	}
-	if d.ID == "" || d.UpdateSecrets {
+	if d.ID == "" {
 		return cfg, nil
 	}
 
@@ -58,13 +60,30 @@ func (s *ConnectionService) resolve(d ConnectionDraft) (conn.ConnectionConfig, e
 	if err != nil {
 		return conn.ConnectionConfig{}, err
 	}
-	cfg.Password = stored.Password
+	keep := func(name string) bool { return !slices.Contains(d.UpdateSecrets, name) }
+	if keep(store.SecretPassword) {
+		cfg.Password = stored.Password
+	}
 	if cfg.SSH != nil && stored.SSH != nil {
 		ssh := *cfg.SSH
-		ssh.Password, ssh.Passphrase = stored.SSH.Password, stored.SSH.Passphrase
+		if keep(store.SecretSSHPassword) {
+			ssh.Password = stored.SSH.Password
+		}
+		if keep(store.SecretSSHPassphrase) {
+			ssh.Passphrase = stored.SSH.Passphrase
+		}
 		cfg.SSH = &ssh
 	}
 	return cfg, nil
+}
+
+// DetectSocket finds the database's Unix socket on the draft's SSH server.
+func (s *ConnectionService) DetectSocket(ctx context.Context, d ConnectionDraft) (string, error) {
+	cfg, err := s.resolve(d)
+	if err != nil {
+		return "", err
+	}
+	return conn.DetectSocket(ctx, cfg)
 }
 
 // ListSaved returns saved connections without passwords.
@@ -80,9 +99,9 @@ func (s *ConnectionService) ListSaved() ([]store.Connection, error) {
 	return list, nil
 }
 
-// SaveConnection creates (empty id) or updates a saved connection.
-// Passwords in c.Config are stored only when creating or when updateSecrets is true.
-func (s *ConnectionService) SaveConnection(c store.Connection, updateSecrets bool) (store.Connection, error) {
+// SaveConnection creates (empty id) or updates a saved connection. When updating,
+// only the secrets named in updateSecrets are written; the others are kept.
+func (s *ConnectionService) SaveConnection(c store.Connection, updateSecrets []string) (store.Connection, error) {
 	if err := s.files.checkPaths(&c.Config); err != nil {
 		return store.Connection{}, err
 	}
@@ -120,12 +139,12 @@ func (s *ConnectionService) DeleteConnection(id string) error {
 }
 
 // TestSavedConnection tests a saved connection using its stored passwords.
-func (s *ConnectionService) TestSavedConnection(ctx context.Context, id string) error {
+func (s *ConnectionService) TestSavedConnection(ctx context.Context, id string) (conn.ServerInfo, error) {
 	cfg, err := s.store.Get(id)
 	if err != nil {
-		return err
+		return conn.ServerInfo{}, err
 	}
-	return conn.Ping(ctx, cfg)
+	return conn.Probe(ctx, cfg)
 }
 
 // ListSavedDatabases lists databases on a saved connection.

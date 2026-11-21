@@ -248,3 +248,15 @@ func TestSQLServerCACert(t *testing.T) {
 		t.Errorf("certificate = %q, want /certs/ca.pem", got)
 	}
 }
+
+func TestSocketDSNs(t *testing.T) {
+	my, err := mysql.ParseDSN(mysqlDSN(ConnectionConfig{Type: MySQL, User: "root", Password: "p@ss", SocketPath: "/run/mysqld/mysqld.sock"}))
+	if err != nil || my.Net != "unix" || my.Addr != "/run/mysqld/mysqld.sock" || my.Passwd != "p@ss" {
+		t.Errorf("mysql socket DSN = %+v, %v", my, err)
+	}
+
+	pg, err := pgconn.ParseConfig(postgresDSN(ConnectionConfig{Type: PostgreSQL, User: "postgres", Database: "shop", SocketPath: "/var/run/postgresql"}))
+	if err != nil || pg.Host != "/var/run/postgresql" || pg.Port != 5432 || pg.Database != "shop" || pg.TLSConfig != nil {
+		t.Errorf("postgres socket config = host %q port %d db %q tls %v, err %v", pg.Host, pg.Port, pg.Database, pg.TLSConfig != nil, err)
+	}
+}

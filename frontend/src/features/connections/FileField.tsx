@@ -13,7 +13,13 @@ type Props = {
 
 // Read-only path with dialog buttons: paths can only come from the Go-side
 // file dialog, which also allowlists them in the backend.
-export function FileField({ label, value, choices, onChange, optional }: Props) {
+export function FileField({
+  label,
+  value,
+  choices,
+  onChange,
+  optional,
+}: Props) {
   const [error, setError] = useState("");
 
   const pick = async (kind: FileKind) => {
@@ -31,15 +37,29 @@ export function FileField({ label, value, choices, onChange, optional }: Props) 
       <span className="label">{label}</span>
       <div className="row">
         <output className="path" title={value || undefined}>
-          {value || <span className="muted">{optional ? "None" : "No file chosen"}</span>}
+          {value || (
+            <span className="muted">
+              {optional ? "None" : "No file chosen"}
+            </span>
+          )}
         </output>
         {choices.map((c) => (
-          <button key={c.kind} type="button" className="ghost" onClick={() => void pick(c.kind)}>
+          <button
+            key={c.kind}
+            type="button"
+            className="ghost"
+            onClick={() => void pick(c.kind)}
+          >
             {c.label}
           </button>
         ))}
         {optional && value && (
-          <button type="button" className="ghost" onClick={() => onChange("")} aria-label={`Clear ${label}`}>
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => onChange("")}
+            aria-label={`Clear ${label}`}
+          >
             Clear
           </button>
         )}

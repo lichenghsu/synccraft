@@ -3,7 +3,7 @@
 | Milestone | Scope | Status |
 |---|---|---|
 | M0 | Project scaffold: Wails v3 + React/TS, example Service, hooks, test databases, Renovate, CI | ✅ Done |
-| M1 | Connection management: connection pool, four drivers, structured DSNs, passwords in the OS keychain | 🚧 In progress |
+| M1 | Connection management: connection pool, four drivers, structured DSNs, passwords in the OS keychain, SSH tunnels | 🚧 In progress |
 | M2 | Introspection and table browser: Dialect interface, metadata queries for all four databases | ⏳ Not started |
 | M3 | Schema comparison: diff algorithm, DDL in the target dialect, transactional execution | ⏳ Not started |
 | M4 | Data sync: parameterized DML, value normalization, progress events and cancellation, streaming diff for large tables | ⏳ Not started |
@@ -28,7 +28,8 @@
 - [x] Structured DSN builders for all four drivers (`mysql.Config`, `net/url`), PG / SQL Server TLS file parameters
 - [x] `FileService`: file paths only via native dialogs (backend allowlist, `PickFile`), `Validate` rejects relative / unclean paths
 - [x] `Pool`: cache `*sql.DB`, ping timeout, close on `ServiceShutdown`; `Ping` without caching; integration tests against `dev/docker-compose.yml`
-- [ ] SSH tunnel (`golang.org/x/crypto/ssh` + known_hosts) and MySQL TLS (`mysql.RegisterTLSConfig`)
+- [x] SSH tunnel (password / private key / agent, strict known_hosts, reconnect), Unix socket over SSH (with socket auto-detection), server detection (MariaDB vs MySQL), MySQL TLS; per-secret updates (`updateSecrets` list)
+- [ ] Kubernetes / CloudNativePG connections
 - [x] `ConnectionService` (Wails): `TestConnection`, `ListDatabases` (both enforce `checkPaths`)
 - [x] Store: `os.UserConfigDir` + OS keychain + atomic writes; saved-connection APIs in `ConnectionService`
 - [x] React: connections page (saved list, `ConnectionForm`, test / load databases / save / delete), file fields via native dialogs only; `HelloService` removed

@@ -7,21 +7,22 @@ The connections screen: saved connections on the left, the connection form on th
 | File | Contents |
 |---|---|
 | `ConnectionsPage.tsx` | Loads saved connections (`api.listSaved`), selection, new / saved / deleted handling |
-| `ConnectionForm.tsx` | Form fields per engine; Test connection (cancellable), Load list, Save, Delete (click twice) |
+| `ConnectionForm.tsx` | Form fields per engine; Test connection (cancellable, shows the detected server such as "MariaDB 10.11.6"), Load list, Save, Delete (click twice) |
 | `FileField.tsx` | Read-only path plus dialog buttons; the only way to fill a file path |
+| `SecretField.tsx` | Password-like input that never shows the stored value |
 | `model.ts` | `FormState`, defaults, labels, `cleanConfig`, `toDraft` |
 
 ## Passwords
 
-The frontend never receives a saved password. A saved connection opens with an empty password field and `secretsDirty: false`:
+The frontend never receives a saved secret (DB password, SSH password, SSH key passphrase). A saved connection opens with empty secret fields and `dirtySecrets: []`; typing into a field adds its name (`SECRET` in `model.ts`, mirroring `store.Secret*`).
 
-| User action | `updateSecrets` sent | Effect |
-|---|---|---|
-| Leaves the password field alone | `false` | Backend uses the stored password (also for Test / Load list) |
-| Types a new password | `true` | Replaces the stored password on Save |
-| Types, then empties the field | `true` | Save clears the stored password; "Keep saved password" undoes it |
+| User action on one secret field | Effect |
+|---|---|
+| Leaves it alone | Backend uses the stored value (also for Test / Load list) |
+| Types a new value | Replaces only that secret on Save |
+| Types, then empties it | Save deletes that secret; "Keep saved" undoes it |
 
-New connections always send `updateSecrets: true`.
+New connections send every secret. Switching SSH auth method marks the secrets the new method doesn't use as dirty and empty, so they are deleted on save.
 
 ## Engine-specific fields
 
@@ -29,9 +30,17 @@ New connections always send `updateSecrets: true`.
 
 | Engine | Extra fields shown |
 |---|---|
-| MySQL | none yet (TLS files and SSH pending in the backend) |
+| MySQL | CA certificate, client certificate and key |
 | PostgreSQL | SSL mode; CA certificate, client certificate and key |
 | SQL Server | Trust server certificate; CA certificate |
-| SQLite | Database file (Open… / New…) instead of host, port, user, password |
+| SQLite | Database file (Open… / New…) instead of host, port, user, password; no TLS or SSH |
 
-SSH tunnel fields are not in the form until the backend supports tunnels.
+Form order for server engines: SSH tunnel → transport (TCP / Unix socket) → host and port or socket path → user and password → database → TLS. You first say how to reach the server, then where the database is.
+
+Unticking the SSH box keeps its fields in the form (`useSSH: false`); only `toDraft` drops them, so ticking it again restores what was typed.
+
+Server engines can connect through an SSH tunnel: host, port (22), user, auth method (password / private key + passphrase / agent) and an optional known_hosts file. Turning the tunnel on fills an empty database host with `127.0.0.1` (the SSH server itself); the host is entered as seen from the SSH server.
+
+For MySQL and PostgreSQL the tunnel can reach the database through a **Unix socket** instead of TCP (`viaSocket`). Host, port and TLS are then hidden, and an empty database user defaults to the SSH user, since socket auth matches the OS account name. This is how root on a Debian/Ubuntu MariaDB logs in without a password.
+
+The socket path can stay empty: Test connection, Load list and Save first call `api.detectSocket`, which tries the usual locations for that engine on the SSH server, and fill in what it found. "Detect" does only that step.

@@ -9,26 +9,38 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/go-sql-driver/mysql"
 )
 
 // PingTimeout bounds how long opening a connection may take.
 const PingTimeout = 10 * time.Second
 
-// ErrNotSupportedYet marks options that validate but cannot be connected yet.
-// Failing loudly beats silently connecting without the tunnel or TLS.
-var ErrNotSupportedYet = errors.New("not supported yet")
-
 // ErrUntrustedCertificate wraps TLS verification failures with a hint on what to change.
 var ErrUntrustedCertificate = errors.New("server certificate is not trusted")
+
+// ErrSocketAuthOnly wraps MySQL error 1698: the account authenticates by the
+// OS user of a local socket (auth_socket / unix_socket), not by password.
+var ErrSocketAuthOnly = errors.New("this account only accepts local socket logins")
 
 // Pool caches one *sql.DB per distinct ConnectionConfig.
 type Pool struct {
 	mu  sync.Mutex
-	dbs map[string]*sql.DB
+	dbs map[string]*opened
+}
+
+// opened is a DB plus the SSH tunnel it dials through, closed together.
+type opened struct {
+	db     *sql.DB
+	tunnel *sshTunnel
+}
+
+func (o *opened) Close() error {
+	return errors.Join(o.db.Close(), o.tunnel.Close())
 }
 
 func NewPool() *Pool {
-	return &Pool{dbs: map[string]*sql.DB{}}
+	return &Pool{dbs: map[string]*opened{}}
 }
 
 // Get returns a cached, pinged *sql.DB for c, opening one if needed.
@@ -37,14 +49,14 @@ func (p *Pool) Get(ctx context.Context, c ConnectionConfig) (*sql.DB, error) {
 	key := c.Key()
 
 	p.mu.Lock()
-	if db, ok := p.dbs[key]; ok {
+	if o, ok := p.dbs[key]; ok {
 		p.mu.Unlock()
-		return db, nil
+		return o.db, nil
 	}
 	p.mu.Unlock()
 
 	// Open without holding the lock so a slow server doesn't block other configs.
-	db, err := open(ctx, c)
+	o, err := open(ctx, c)
 	if err != nil {
 		return nil, err
 	}
@@ -52,36 +64,36 @@ func (p *Pool) Get(ctx context.Context, c ConnectionConfig) (*sql.DB, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if existing, ok := p.dbs[key]; ok {
-		db.Close() // lost a race with another Get for the same config
-		return existing, nil
+		o.Close() // lost a race with another Get for the same config
+		return existing.db, nil
 	}
-	p.dbs[key] = db
-	return db, nil
+	p.dbs[key] = o
+	return o.db, nil
 }
 
 // Close closes and forgets the DB for c, if any.
 func (p *Pool) Close(c ConnectionConfig) error {
 	key := c.Key()
 	p.mu.Lock()
-	db, ok := p.dbs[key]
+	o, ok := p.dbs[key]
 	delete(p.dbs, key)
 	p.mu.Unlock()
 	if !ok {
 		return nil
 	}
-	return db.Close()
+	return o.Close()
 }
 
 // CloseAll closes every cached DB.
 func (p *Pool) CloseAll() error {
 	p.mu.Lock()
 	dbs := p.dbs
-	p.dbs = map[string]*sql.DB{}
+	p.dbs = map[string]*opened{}
 	p.mu.Unlock()
 
 	var errs []error
-	for _, db := range dbs {
-		errs = append(errs, db.Close())
+	for _, o := range dbs {
+		errs = append(errs, o.Close())
 	}
 	return errors.Join(errs...)
 }
@@ -95,29 +107,39 @@ func (p *Pool) Len() int {
 
 // Ping opens c, pings it and closes it again without caching.
 func Ping(ctx context.Context, c ConnectionConfig) error {
-	db, err := open(ctx, c)
-	if err != nil {
-		return err
-	}
-	return db.Close()
+	_, err := Probe(ctx, c)
+	return err
 }
 
-func open(ctx context.Context, c ConnectionConfig) (*sql.DB, error) {
-	if c.SSH != nil {
-		return nil, fmt.Errorf("ssh tunnel: %w", ErrNotSupportedYet)
+// Probe opens c, identifies the server and closes it again without caching.
+func Probe(ctx context.Context, c ConnectionConfig) (ServerInfo, error) {
+	o, err := open(ctx, c)
+	if err != nil {
+		return ServerInfo{}, err
 	}
-	if c.Type == MySQL && c.TLS != nil {
-		return nil, fmt.Errorf("mysql tls files: %w", ErrNotSupportedYet)
+	defer o.Close()
+	return DetectServer(ctx, o.db, c.Type)
+}
+
+func open(ctx context.Context, c ConnectionConfig) (*opened, error) {
+	if err := c.Validate(); err != nil {
+		return nil, err
 	}
 
-	driver, dsn, err := buildDSN(c)
+	var tun *sshTunnel
+	if c.SSH != nil {
+		var err error
+		if tun, err = newSSHTunnel(ctx, c.SSH); err != nil {
+			return nil, err
+		}
+	}
+
+	db, err := openDB(c, tun)
 	if err != nil {
+		tun.Close()
 		return nil, err
 	}
-	db, err := sql.Open(driver, dsn)
-	if err != nil {
-		return nil, err
-	}
+	o := &opened{db: db, tunnel: tun}
 
 	if c.Type == SQLite {
 		db.SetMaxOpenConns(1) // avoid "database is locked" between our own connections
@@ -130,10 +152,22 @@ func open(ctx context.Context, c ConnectionConfig) (*sql.DB, error) {
 	pingCtx, cancel := context.WithTimeout(ctx, PingTimeout)
 	defer cancel()
 	if err := db.PingContext(pingCtx); err != nil {
-		db.Close()
-		return nil, explainTLSError(c.Type, err)
+		o.Close()
+		return nil, explain(c, err)
 	}
-	return db, nil
+	return o, nil
+}
+
+func explain(c ConnectionConfig, err error) error {
+	var myErr *mysql.MySQLError
+	if errors.As(err, &myErr) && myErr.Number == 1698 {
+		hint := "connect through SSH and pick \"Unix socket\", or create a user with a password"
+		if c.SocketPath != "" {
+			hint = "log in over SSH as the OS user with the same name as the database user, or create a user with a password"
+		}
+		return fmt.Errorf("%w: %s (%w)", ErrSocketAuthOnly, hint, err)
+	}
+	return explainTLSError(c.Type, err)
 }
 
 func explainTLSError(t DBType, err error) error {

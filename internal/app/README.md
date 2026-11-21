@@ -55,16 +55,17 @@ Unexported helpers used by other services in this package:
 
 | Method | Description |
 |---|---|
-| `TestConnection(ctx, draft)` | `checkPaths`, then open + ping + close (`conn.Ping`); nothing is cached |
+| `TestConnection(ctx, draft)` | `checkPaths`, then connect, detect the server and disconnect (`conn.Probe`); returns `ServerInfo` (e.g. MariaDB 10.11.6); nothing is cached |
 | `ListDatabases(ctx, draft)` | `checkPaths`, then a pooled connection and `conn.ListDatabases` |
+| `DetectSocket(ctx, draft)` | Finds the database's Unix socket on the draft's SSH server (`conn.DetectSocket`) |
 | `ListSaved()` | Saved connections without passwords; their file paths are added to the allowlist |
-| `SaveConnection(c, updateSecrets)` | `checkPaths` + `Validate`, then `store.Save`; closes the pooled connection of the previous settings |
+| `SaveConnection(c, updateSecrets)` | `checkPaths` + `Validate`, then `store.Save` (only the named secrets are written); closes the pooled connection of the previous settings |
 | `DeleteConnection(id)` | Removes the connection, its keychain entries and its pooled connection |
-| `TestSavedConnection(ctx, id)`, `ListSavedDatabases(ctx, id)` | Same as above for a saved connection; passwords come from the keychain |
+| `TestSavedConnection(ctx, id)`, `ListSavedDatabases(ctx, id)` | Same as above for a saved connection (Test also returns `ServerInfo`); passwords come from the keychain |
 | `ServiceShutdown()` | Called by Wails on exit; closes every pooled connection |
 
 Methods taking `ctx` can be cancelled from the frontend. List methods never return `null` from Go, but the generated types still say `T[] | null`; wrap them with `arr()`.
 
 Saved connections are addressed by id so passwords never travel back to the frontend.
 
-`ConnectionDraft{id, config, updateSecrets}` is the connection form's content. When `id` is set and `updateSecrets` is false (the user edited a saved connection but not its password), the stored passwords are filled in from the keychain before connecting, so "Test connection" works on an edited saved connection.
+`ConnectionDraft{id, config, updateSecrets}` is the connection form's content. When `id` is set, every secret not named in `updateSecrets` is filled in from the keychain before connecting, so "Test connection" works on an edited saved connection whose passwords the frontend never had.

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/go-sql-driver/mysql"
 )
 
 // SQLite needs no server, so it exercises the pool without docker.
@@ -123,18 +125,6 @@ func TestPoolRejectsInvalidConfig(t *testing.T) {
 	}
 }
 
-func TestNotSupportedYet(t *testing.T) {
-	ssh := ConnectionConfig{Type: PostgreSQL, Host: "h", User: "u",
-		SSH: &SSHTunnel{Host: "bastion", User: "ops", Auth: SSHAuthAgent}}
-	mysqlTLS := ConnectionConfig{Type: MySQL, Host: "h", User: "u", TLS: &TLSFiles{CACertPath: "/ca.pem"}}
-
-	for name, c := range map[string]ConnectionConfig{"ssh": ssh, "mysql tls": mysqlTLS} {
-		if err := Ping(context.Background(), c); !errors.Is(err, ErrNotSupportedYet) {
-			t.Errorf("%s: Ping() = %v, want ErrNotSupportedYet", name, err)
-		}
-	}
-}
-
 func TestPingDoesNotCache(t *testing.T) {
 	c := sqliteConfig(t, "ping.db")
 	if err := Ping(context.Background(), c); err != nil {
@@ -191,5 +181,28 @@ func TestExplainTLSError(t *testing.T) {
 	other := errors.New("mssql: Login failed for user 'sa'.")
 	if got := explainTLSError(SQLServer, other); got != other {
 		t.Errorf("non-TLS error changed: %v", got)
+	}
+}
+
+func TestExplainSocketAuth(t *testing.T) {
+	denied := &mysql.MySQLError{Number: 1698, Message: "Access denied for user 'root'@'localhost'"}
+
+	got := explain(ConnectionConfig{Type: MySQL}, denied)
+	if !errors.Is(got, ErrSocketAuthOnly) || !strings.Contains(got.Error(), "Unix socket") {
+		t.Errorf("tcp: %v", got)
+	}
+	var myErr *mysql.MySQLError
+	if !errors.As(got, &myErr) {
+		t.Error("original MySQL error lost")
+	}
+
+	got = explain(ConnectionConfig{Type: MySQL, SocketPath: "/run/mysqld/mysqld.sock"}, denied)
+	if !strings.Contains(got.Error(), "OS user") {
+		t.Errorf("socket: %v", got)
+	}
+
+	other := &mysql.MySQLError{Number: 1045, Message: "Access denied (using password: YES)"}
+	if got := explain(ConnectionConfig{Type: MySQL}, other); got != error(other) {
+		t.Errorf("1045 should pass through, got %v", got)
 	}
 }
