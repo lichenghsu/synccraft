@@ -113,7 +113,7 @@ func TestCheckPathsNoFiles(t *testing.T) {
 }
 
 func TestEveryFileKindHasDialog(t *testing.T) {
-	kinds := []FileKind{FileSQLiteOpen, FileSQLiteCreate, FileCACert, FileClientCert, FileClientKey, FileSSHPrivateKey, FileKnownHosts}
+	kinds := []FileKind{FileSQLiteOpen, FileSQLiteCreate, FileCACert, FileClientCert, FileClientKey, FileSSHPrivateKey, FileKnownHosts, FileKubeconfig}
 	for _, k := range kinds {
 		spec, ok := dialogSpecs[k]
 		if !ok || spec.title == "" || len(spec.filters) == 0 {
@@ -122,5 +122,21 @@ func TestEveryFileKindHasDialog(t *testing.T) {
 	}
 	if len(dialogSpecs) != len(kinds) {
 		t.Errorf("dialogSpecs has %d kinds, test lists %d", len(dialogSpecs), len(kinds))
+	}
+}
+
+func TestCheckFile(t *testing.T) {
+	s, _ := newTestFileService("/home/u/.kube/config", nil)
+	if err := s.checkFile(""); err != nil {
+		t.Errorf("empty path = %v, want nil (default kubeconfig)", err)
+	}
+	if err := s.checkFile("/home/u/.kube/config"); !errors.Is(err, ErrPathNotPicked) {
+		t.Errorf("unpicked = %v", err)
+	}
+	if _, err := s.PickFile(FileKubeconfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.checkFile("/home/u/.kube/config"); err != nil {
+		t.Errorf("picked = %v", err)
 	}
 }

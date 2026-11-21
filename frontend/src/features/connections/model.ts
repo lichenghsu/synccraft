@@ -1,10 +1,12 @@
 import {
+  CNPGUser,
   DBType,
   SSHAuthMethod,
   type Connection,
   type ConnectionConfig,
   type ConnectionDraft,
   type SSHTunnel,
+  type K8sForward,
 } from "../../api/wails";
 
 export const DB_TYPES = [
@@ -61,11 +63,38 @@ export type FormState = {
   // Secrets the user typed into. Saved connections open with empty secret
   // fields; anything not listed here keeps its stored value.
   dirtySecrets: SecretName[];
-  // The SSH box; config.ssh is kept while unticked so nothing typed is lost.
-  useSSH: boolean;
+  // How the database is reached. config.ssh / config.k8s are kept while
+  // another route is chosen, so nothing typed is lost; toDraft drops them.
+  route: Route;
+  k8sTarget: K8sTarget;
   // Reach MySQL / PostgreSQL through a Unix socket on the SSH server.
   viaSocket: boolean;
 };
+
+export type Route = "direct" | "ssh" | "k8s";
+export type K8sTarget = "cnpg" | "service" | "pod";
+
+export const ROUTES: { value: Route; label: string }[] = [
+  { value: "direct", label: "Direct" },
+  { value: "ssh", label: "SSH tunnel" },
+  { value: "k8s", label: "Kubernetes" },
+];
+
+export const newK8s = (): K8sForward => ({ namespace: "" });
+
+const k8sTargetOf = (
+  k: K8sForward | null | undefined,
+  type: DBType,
+): K8sTarget =>
+  k?.cnpgCluster
+    ? "cnpg"
+    : k?.service
+      ? "service"
+      : k?.pod
+        ? "pod"
+        : type === DBType.PostgreSQL
+          ? "cnpg"
+          : "service";
 
 export const SOCKET_PLACEHOLDER: Partial<Record<DBType, string>> = {
   [DBType.MySQL]: "/run/mysqld/mysqld.sock",
@@ -87,7 +116,8 @@ export const newForm = (type: DBType = DBType.MySQL): FormState => ({
     database: "",
   },
   dirtySecrets: [],
-  useSSH: false,
+  route: "direct",
+  k8sTarget: k8sTargetOf(null, type),
   viaSocket: false,
 });
 
@@ -96,7 +126,8 @@ export const formFromSaved = (c: Connection): FormState => ({
   name: c.name,
   config: c.config,
   dirtySecrets: [],
-  useSSH: !!c.config.ssh,
+  route: c.config.k8s ? "k8s" : c.config.ssh ? "ssh" : "direct",
+  k8sTarget: k8sTargetOf(c.config.k8s, c.config.type),
   viaSocket: !!c.config.socketPath,
 });
 
@@ -166,7 +197,33 @@ export function unusedSSHSecrets(auth: SSHAuthMethod): SecretName[] {
 }
 
 function applyTransport(f: FormState): ConnectionConfig {
-  const cfg = cleanConfig(f.useSSH ? f.config : { ...f.config, ssh: null });
+  const cfg = cleanConfig({
+    ...f.config,
+    ssh: f.route === "ssh" ? f.config.ssh : null,
+    k8s: f.route === "k8s" ? f.config.k8s : null,
+  });
+
+  if (cfg.k8s) {
+    const k = cfg.k8s;
+    const t =
+      f.k8sTarget === "cnpg" && cfg.type !== DBType.PostgreSQL
+        ? "service"
+        : f.k8sTarget;
+    const k8s: K8sForward = {
+      ...k,
+      cnpgCluster: t === "cnpg" ? k.cnpgCluster : "",
+      cnpgUser: t === "cnpg" ? k.cnpgUser : CNPGUser.$zero,
+      service: t === "service" ? k.service : "",
+      pod: t === "pod" ? k.pod : "",
+      port: t === "cnpg" ? 0 : k.port,
+    };
+    const out = { ...cfg, k8s, host: "", socketPath: "" };
+    // CNPG supplies user, password and CA from its secrets.
+    return t === "cnpg"
+      ? { ...out, user: "", password: "", tls: null, sslMode: "" }
+      : out;
+  }
+
   if (!cfg.ssh || !f.viaSocket || !supportsSocket(cfg.type))
     return { ...cfg, socketPath: "" };
   // Socket auth maps the OS user to the database user of the same name.

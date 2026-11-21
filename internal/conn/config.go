@@ -39,9 +39,37 @@ type ConnectionConfig struct {
 	SSLMode                string `json:"sslMode,omitempty"`
 	TrustServerCertificate bool   `json:"trustServerCertificate,omitempty"`
 
-	SSH *SSHTunnel `json:"ssh,omitempty"` // nil = connect directly
-	TLS *TLSFiles  `json:"tls,omitempty"` // nil = driver defaults
+	SSH *SSHTunnel  `json:"ssh,omitempty"` // nil = connect directly
+	K8s *K8sForward `json:"k8s,omitempty"` // nil = not in Kubernetes
+	TLS *TLSFiles   `json:"tls,omitempty"` // nil = driver defaults
 }
+
+// K8sForward reaches a database inside Kubernetes through the API server's
+// port-forward, like kubectl port-forward but without a local port.
+// Exactly one of CNPGCluster, Service or Pod selects the target.
+type K8sForward struct {
+	KubeconfigPath string `json:"kubeconfigPath,omitempty"` // "" = $KUBECONFIG or ~/.kube/config
+	Context        string `json:"context,omitempty"`        // "" = current context
+	Namespace      string `json:"namespace"`
+
+	// CNPGCluster is a CloudNativePG Cluster: connects to its <name>-rw service
+	// and reads user, password, database and CA from its secrets at connect
+	// time, so nothing secret is stored locally.
+	CNPGCluster string   `json:"cnpgCluster,omitempty"`
+	CNPGUser    CNPGUser `json:"cnpgUser,omitempty"` // "" = app
+
+	Service string `json:"service,omitempty"`
+	Pod     string `json:"pod,omitempty"`
+	Port    int    `json:"port,omitempty"` // remote port; 0 = engine default
+}
+
+// CNPGUser picks which CloudNativePG secret supplies the credentials.
+type CNPGUser string
+
+const (
+	CNPGUserApp       CNPGUser = "app"       // <cluster>-app
+	CNPGUserSuperuser CNPGUser = "superuser" // <cluster>-superuser (needs enableSuperuserAccess)
+)
 
 // SSHAuthMethod selects how to authenticate to the SSH server.
 type SSHAuthMethod string
@@ -79,6 +107,7 @@ var (
 	ErrInvalidSSHAuth    = errors.New("invalid ssh auth method")
 	ErrUnsupportedOption = errors.New("option not supported for this database type")
 	ErrInvalidPath       = errors.New("file path must be absolute and clean")
+	ErrInvalidK8sTarget  = errors.New("choose exactly one of CNPG cluster, service or pod")
 )
 
 // DefaultSSHPort is used when SSHTunnel.Port is 0.
@@ -129,10 +158,15 @@ func (c *ConnectionConfig) Validate() error {
 		if strings.TrimSpace(c.FilePath) == "" {
 			return fmt.Errorf("%w: filePath", ErrMissingField)
 		}
-		if c.SSH != nil || c.TLS != nil {
-			return fmt.Errorf("%w: ssh/tls with sqlite", ErrUnsupportedOption)
+		if c.SSH != nil || c.TLS != nil || c.K8s != nil {
+			return fmt.Errorf("%w: ssh/tls/kubernetes with sqlite", ErrUnsupportedOption)
 		}
 		return nil
+	}
+
+	if c.K8s != nil {
+		// The target, and for CNPG the credentials, come from the cluster.
+		return c.validateK8s()
 	}
 
 	if c.SocketPath != "" {
@@ -169,6 +203,56 @@ func (c *ConnectionConfig) Validate() error {
 		}
 	}
 
+	return nil
+}
+
+func (c *ConnectionConfig) validateK8s() error {
+	k := c.K8s
+	if c.SSH != nil || c.SocketPath != "" {
+		return fmt.Errorf("%w: kubernetes with ssh or a unix socket", ErrUnsupportedOption)
+	}
+	if strings.TrimSpace(k.Namespace) == "" {
+		return fmt.Errorf("%w: k8s.namespace (Kubernetes namespace)", ErrMissingField)
+	}
+	targets := 0
+	for _, t := range []string{k.CNPGCluster, k.Service, k.Pod} {
+		if strings.TrimSpace(t) != "" {
+			targets++
+		}
+	}
+	if targets != 1 {
+		return ErrInvalidK8sTarget
+	}
+	if k.Port < 0 || k.Port > 65535 || c.Port < 0 || c.Port > 65535 {
+		return ErrInvalidPort
+	}
+
+	if k.CNPGCluster != "" {
+		if c.Type != PostgreSQL {
+			return fmt.Errorf("%w: CloudNativePG is PostgreSQL only", ErrUnsupportedOption)
+		}
+		switch k.CNPGUser {
+		case "", CNPGUserApp, CNPGUserSuperuser:
+		default:
+			return fmt.Errorf("%w: cnpgUser %q", ErrInvalidK8sTarget, k.CNPGUser)
+		}
+		if c.TLS != nil {
+			return fmt.Errorf("%w: CNPG supplies its own CA", ErrUnsupportedOption)
+		}
+		return nil
+	}
+
+	if strings.TrimSpace(c.User) == "" {
+		return fmt.Errorf("%w: user (database user)", ErrMissingField)
+	}
+	if c.Type == PostgreSQL {
+		if _, ok := validSSLModes[c.SSLMode]; !ok && c.SSLMode != "" {
+			return ErrInvalidSSLMode
+		}
+	}
+	if c.TLS != nil {
+		return c.validateTLS()
+	}
 	return nil
 }
 
@@ -244,6 +328,9 @@ func (c *ConnectionConfig) FilePaths() []string {
 	}
 	if c.SSH != nil {
 		candidates = append(candidates, c.SSH.PrivateKeyPath, c.SSH.KnownHostsPath)
+	}
+	if c.K8s != nil {
+		candidates = append(candidates, c.K8s.KubeconfigPath)
 	}
 
 	var paths []string

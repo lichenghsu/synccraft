@@ -12,6 +12,7 @@ Database connection layer: connection config, DSN building, driver registration 
 | `pool.go` | `Pool` (one cached `*sql.DB` per config) and `Ping` (open, ping, close) |
 | `connector.go` | `openDB`: per-engine connectors (MySQL TLS, SSH dialers), `loadTLSConfig` |
 | `ssh.go` | SSH tunnel: auth methods, strict known_hosts, reconnect |
+| `k8s.go` | Kubernetes port-forward dialer, CloudNativePG credentials, discovery (contexts, namespaces, clusters, services) |
 | `databases.go` | `ListDatabases`: non-system databases per engine |
 | `socket.go` | `DetectSocket`: finds the database's Unix socket on the SSH server |
 | `server.go` | `DetectServer` / `ServerInfo`: product and version, MariaDB told apart from MySQL |
@@ -81,6 +82,25 @@ Host keys are always checked against known_hosts; an empty `KnownHostsPath` mean
 
 The DSN keeps the real database host; only the dial goes through SSH. TLS therefore verifies the database's own name (e.g. PostgreSQL `verify-full`), not `127.0.0.1` as a local port forward would.
 
+## Kubernetes (`k8s.go`)
+
+`K8s *K8sForward` reaches a database inside a cluster through the API server's pod port-forward, the same mechanism as `kubectl port-forward`, but as a **dialer**: no local port is opened, and each database connection gets its own data and error stream. kubeconfig is loaded like kubectl (`KubeconfigPath` or `$KUBECONFIG` / `~/.kube/config`, optional `Context`); an explicit kubeconfig path goes through the file allowlist. Exec credential plugins in the kubeconfig (EKS, GKE, OIDC) run just as they do for kubectl.
+
+Targets, exactly one of:
+
+| Target | Connects to | Credentials |
+|---|---|---|
+| `CNPGCluster` (PostgreSQL only) | the `<cluster>-rw` service, i.e. the primary | `<cluster>-app` (or `-superuser` with `CNPGUser`) secret; CA from `<cluster>-ca`; `sslmode=verify-full` against `<cluster>-rw.<ns>.svc` |
+| `Service` | a ready pod behind the service; service port → (named) target port | typed in, stored in the keychain |
+| `Pod` | that pod and port | typed in |
+
+- Every dial resolves the pod again, so new connections follow a CNPG failover.
+- CNPG secrets and CA are read at connect time and only kept in memory; nothing secret is saved locally.
+- The DSN host is the service's in-cluster name, which matches CNPG's certificate and is never resolved locally (pgx `LookupFunc` and go-mssqldb `HostDialer` pass it through).
+- Errors: `ErrK8sNoReadyPod`, `ErrK8sPortNotFound`, `ErrK8sForward` (includes the kubelet's reason, e.g. nothing listening), `ErrCNPGSecret` (hints at `enableSuperuserAccess` for the superuser secret).
+- **Binary size**: only `clientcmd`, the dynamic client and `portforward`/`spdy` are linked (~10 MB). Core objects (pods, services, secrets, namespaces) are read through the dynamic client and converted to `k8s.io/api/core/v1` types (`k8s_core.go`); the typed clientset would pull in client-go's global scheme with every API group (+14 MB, 60 MB total). Don't import `k8s.io/client-go/kubernetes` or its typed clients.
+- Discovery for the UI: `ListK8sContexts`, `ListK8sNamespaces` (may be forbidden by RBAC), `ListK8sTargets` (CNPG `Cluster` objects via the dynamic client, empty if the CRD is absent, plus services).
+
 ## SSH tunnel (`ssh.go`)
 
 - One `ssh.Client` per pooled DB, closed together with it. Connected eagerly so auth and host key errors show up on "Test connection".
@@ -134,5 +154,15 @@ They:
 - reach all three through the `ssh-bastion` container by their compose service names (which only resolve on the bastion), and check a wrong SSH password;
 - reach MySQL and PostgreSQL through their Unix sockets, which the bastion mounts from shared volumes;
 - give MySQL a random CA and expect `ErrUntrustedCertificate`, proving the TLS files are used.
+
+Kubernetes tests need a kind cluster (build tag `kind`):
+
+```bash
+dev/kind/setup.sh                      # kind + CloudNativePG operator + a test Cluster
+go test -tags kind ./internal/conn/...
+kind delete cluster --name synccraft   # when done
+```
+
+They cover discovery, CNPG with the app and superuser secrets, plain service and pod targets, a port nothing listens on, and pooled reuse. `k8s_test.go` covers pod resolution, named ports, CNPG secrets and validation with fake clientsets, no cluster needed.
 
 Unit tests in `ssh_test.go` run an in-process SSH server (no docker) covering every auth method, host key failures, mismatched key types and reconnecting.

@@ -36,6 +36,28 @@ export function DetectSocket(d: $models.ConnectionDraft): $CancellablePromise<st
 }
 
 /**
+ * K8sContexts lists the contexts in a kubeconfig ("" = $KUBECONFIG or ~/.kube/config).
+ */
+export function K8sContexts(kubeconfigPath: string): $CancellablePromise<conn$0.K8sContexts> {
+    return $Call.ByID(3996253625, kubeconfigPath);
+}
+
+/**
+ * K8sNamespaces lists namespaces; it fails where RBAC forbids listing them,
+ * in which case the namespace can still be typed in.
+ */
+export function K8sNamespaces(kubeconfigPath: string, kubeContext: string): $CancellablePromise<string[] | null> {
+    return $Call.ByID(3932321517, kubeconfigPath, kubeContext);
+}
+
+/**
+ * K8sTargets lists CloudNativePG clusters and services in a namespace.
+ */
+export function K8sTargets(kubeconfigPath: string, kubeContext: string, $namespace: string): $CancellablePromise<conn$0.K8sTargets> {
+    return $Call.ByID(3828580093, kubeconfigPath, kubeContext, $namespace);
+}
+
+/**
  * ListDatabases returns the non-system databases on the draft's server.
  */
 export function ListDatabases(d: $models.ConnectionDraft): $CancellablePromise<string[] | null> {

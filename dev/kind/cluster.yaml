@@ -1,0 +1,35 @@
+# Test-only CloudNativePG cluster for SyncCraft's Kubernetes integration tests.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: synccraft
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: pg
+  namespace: synccraft
+spec:
+  instances: 1
+  enableSuperuserAccess: true
+  storage:
+    size: 1Gi
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+---
+# A plain Service in front of the CNPG primary, for the generic "service" target.
+apiVersion: v1
+kind: Service
+metadata:
+  name: pg-plain
+  namespace: synccraft
+spec:
+  selector:
+    cnpg.io/cluster: pg
+    cnpg.io/instanceRole: primary
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432

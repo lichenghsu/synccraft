@@ -37,4 +37,5 @@ export enum FileKind {
     FileClientKey = "clientKey",
     FileSSHPrivateKey = "sshPrivateKey",
     FileKnownHosts = "knownHosts",
+    FileKubeconfig = "kubeconfig",
 };

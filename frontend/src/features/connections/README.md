@@ -10,6 +10,7 @@ The connections screen: saved connections on the left, the connection form on th
 | `ConnectionForm.tsx` | Form fields per engine; Test connection (cancellable, shows the detected server such as "MariaDB 10.11.6"), Load list, Save, Delete (click twice) |
 | `FileField.tsx` | Read-only path plus dialog buttons; the only way to fill a file path |
 | `SecretField.tsx` | Password-like input that never shows the stored value |
+| `K8sSection.tsx` | Kubernetes route: kubeconfig, context, namespace, target (CloudNativePG / service / pod) with lists loaded from the cluster |
 | `model.ts` | `FormState`, defaults, labels, `cleanConfig`, `toDraft` |
 
 ## Passwords
@@ -35,9 +36,11 @@ New connections send every secret. Switching SSH auth method marks the secrets t
 | SQL Server | Trust server certificate; CA certificate |
 | SQLite | Database file (Open… / New…) instead of host, port, user, password; no TLS or SSH |
 
-Form order for server engines: SSH tunnel → transport (TCP / Unix socket) → host and port or socket path → user and password → database → TLS. You first say how to reach the server, then where the database is.
+Form order for server engines: route (Direct / SSH tunnel / Kubernetes) → transport (TCP / Unix socket) → host and port or socket path → user and password → database → TLS. You first say how to reach the server, then where the database is.
 
-Unticking the SSH box keeps its fields in the form (`useSSH: false`); only `toDraft` drops them, so ticking it again restores what was typed.
+Switching routes (`route`) keeps the other routes' fields in the form; only `toDraft` drops them, so switching back restores what was typed.
+
+**Kubernetes**: pick a kubeconfig (optional), context, namespace and a target. With **CloudNativePG** (PostgreSQL only) the host, user, password, SSL mode and TLS fields are hidden: they come from the cluster's secrets at connect time and nothing is stored. With **Service** or **Pod** you give the port and type the database user and password as usual. "List" and "Find in namespace" fill the suggestions; everything can also be typed, since RBAC often forbids listing.
 
 Server engines can connect through an SSH tunnel: host, port (22), user, auth method (password / private key + passphrase / agent) and an optional known_hosts file. Turning the tunnel on fills an empty database host with `127.0.0.1` (the SSH server itself); the host is entered as seen from the SSH server.
 

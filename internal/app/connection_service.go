@@ -86,6 +86,31 @@ func (s *ConnectionService) DetectSocket(ctx context.Context, d ConnectionDraft)
 	return conn.DetectSocket(ctx, cfg)
 }
 
+// K8sContexts lists the contexts in a kubeconfig ("" = $KUBECONFIG or ~/.kube/config).
+func (s *ConnectionService) K8sContexts(kubeconfigPath string) (conn.K8sContexts, error) {
+	if err := s.files.checkFile(kubeconfigPath); err != nil {
+		return conn.K8sContexts{}, err
+	}
+	return conn.ListK8sContexts(kubeconfigPath)
+}
+
+// K8sNamespaces lists namespaces; it fails where RBAC forbids listing them,
+// in which case the namespace can still be typed in.
+func (s *ConnectionService) K8sNamespaces(ctx context.Context, kubeconfigPath, kubeContext string) ([]string, error) {
+	if err := s.files.checkFile(kubeconfigPath); err != nil {
+		return nil, err
+	}
+	return conn.ListK8sNamespaces(ctx, kubeconfigPath, kubeContext)
+}
+
+// K8sTargets lists CloudNativePG clusters and services in a namespace.
+func (s *ConnectionService) K8sTargets(ctx context.Context, kubeconfigPath, kubeContext, namespace string) (conn.K8sTargets, error) {
+	if err := s.files.checkFile(kubeconfigPath); err != nil {
+		return conn.K8sTargets{}, err
+	}
+	return conn.ListK8sTargets(ctx, kubeconfigPath, kubeContext, namespace)
+}
+
 // ListSaved returns saved connections without passwords.
 func (s *ConnectionService) ListSaved() ([]store.Connection, error) {
 	list, err := s.store.List()
