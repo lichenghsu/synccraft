@@ -226,26 +226,30 @@ func TestLoadErrorsDoNotOverwrite(t *testing.T) {
 	s, _, path := newTestStore(t)
 	os.MkdirAll(filepath.Dir(path), 0o700)
 
-	for name, content := range map[string]string{
-		"corrupt":       "{not json",
-		"future format": `{"version": 2, "connections": []}`,
-	} {
-		t.Run(name, func(t *testing.T) {
-			os.WriteFile(path, []byte(content), 0o600)
-			if _, err := s.List(); err == nil {
-				t.Fatal("List() should fail")
+	// A slice, not a map: each case checks its own error, independent of order.
+	cases := []struct {
+		name    string
+		content string
+		want    error // nil = any error
+	}{
+		{"corrupt", "{not json", nil},
+		{"future format", `{"version": 2, "connections": []}`, ErrUnsupportedVersion},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			os.WriteFile(path, []byte(tc.content), 0o600)
+			_, err := s.List()
+			if err == nil || (tc.want != nil && !errors.Is(err, tc.want)) {
+				t.Fatalf("List() = %v, want %v", err, tc.want)
 			}
 			if _, err := s.Save(Connection{Name: "x", Config: pgWithSSH()}, AllSecrets()); err == nil {
 				t.Fatal("Save() should fail instead of overwriting the file")
 			}
 			raw, _ := os.ReadFile(path)
-			if string(raw) != content {
+			if string(raw) != tc.content {
 				t.Error("file was overwritten")
 			}
 		})
-	}
-	if _, err := s.List(); !errors.Is(err, ErrUnsupportedVersion) {
-		t.Errorf("future format error = %v, want ErrUnsupportedVersion", err)
 	}
 }
 
