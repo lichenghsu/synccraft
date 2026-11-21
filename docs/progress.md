@@ -31,6 +31,6 @@
 - [ ] SSH tunnel (`golang.org/x/crypto/ssh` + known_hosts) and MySQL TLS (`mysql.RegisterTLSConfig`)
 - [x] `ConnectionService` (Wails): `TestConnection`, `ListDatabases` (both enforce `checkPaths`)
 - [ ] Remove `HelloService` (together with the React connection form)
-- [ ] Store: `os.UserConfigDir` + OS keychain + atomic writes
+- [x] Store: `os.UserConfigDir` + OS keychain + atomic writes; saved-connection APIs in `ConnectionService`
 - [ ] React: `ConnectionsProvider`, `ConnectionForm`, saved-connection dropdown, native file dialog for SQLite
 - **Acceptance**: all four databases connect and list their databases; passwords never appear in the JSON file or DevTools

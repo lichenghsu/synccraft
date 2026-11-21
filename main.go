@@ -7,13 +7,19 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/lichenghsu/synccraft/internal/app"
+	"github.com/lichenghsu/synccraft/internal/store"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
 
 func main() {
+	storePath, err := store.DefaultPath()
+	if err != nil {
+		log.Fatal(err)
+	}
 	files := app.NewFileService()
+	connections := app.NewConnectionService(files, store.New(storePath, store.Keyring{Service: "synccraft"}))
 
 	a := application.New(application.Options{
 		Name:        "SyncCraft",
@@ -21,7 +27,7 @@ func main() {
 		Services: []application.Service{
 			application.NewService(app.NewHelloService()),
 			application.NewService(files),
-			application.NewService(app.NewConnectionService(files)),
+			application.NewService(connections),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
