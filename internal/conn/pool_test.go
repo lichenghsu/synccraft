@@ -2,8 +2,11 @@ package conn
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -165,5 +168,28 @@ func TestListDatabasesSQLite(t *testing.T) {
 
 	if _, err := ListDatabases(context.Background(), db, "oracle"); !errors.Is(err, ErrUnsupportedType) {
 		t.Errorf("unknown type error = %v", err)
+	}
+}
+
+func TestExplainTLSError(t *testing.T) {
+	flattened := errors.New("TLS Handshake failed: tls: failed to verify certificate: x509: cannot validate certificate for 127.0.0.1 because it doesn't contain any IP SANs")
+	typed := &tls.CertificateVerificationError{Err: x509.UnknownAuthorityError{}}
+
+	for name, in := range map[string]error{"flattened": flattened, "typed": typed} {
+		got := explainTLSError(SQLServer, in)
+		if !errors.Is(got, ErrUntrustedCertificate) || !errors.Is(got, in) {
+			t.Errorf("%s: %v should wrap both ErrUntrustedCertificate and the original", name, got)
+		}
+		if !strings.Contains(got.Error(), "Trust server certificate") {
+			t.Errorf("%s: SQL Server hint missing: %v", name, got)
+		}
+	}
+	if got := explainTLSError(PostgreSQL, flattened); !strings.Contains(got.Error(), "SSL mode") {
+		t.Errorf("postgres hint missing: %v", got)
+	}
+
+	other := errors.New("mssql: Login failed for user 'sa'.")
+	if got := explainTLSError(SQLServer, other); got != other {
+		t.Errorf("non-TLS error changed: %v", got)
 	}
 }

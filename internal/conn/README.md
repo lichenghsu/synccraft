@@ -62,6 +62,8 @@ Host keys are always checked against known_hosts; an empty `KnownHostsPath` mean
 - `Ping(ctx, cfg)` is for "Test connection": nothing is cached.
 - `Close(cfg)` / `CloseAll()`; `ConnectionService.ServiceShutdown` calls `CloseAll`.
 
+**`ErrUntrustedCertificate`**: TLS verification failures are wrapped with a hint per engine (choose the CA certificate; SQL Server: "Trust server certificate" for self-signed; PostgreSQL: lower SSL mode). The original error stays in the chain. go-mssqldb returns the TLS error as plain text, so `x509:` in the message is matched too.
+
 **`ErrNotSupportedYet`**: SSH tunnels and MySQL TLS files pass `Validate` but `open` refuses them, rather than silently connecting without the tunnel or TLS.
 
 ## ListDatabases

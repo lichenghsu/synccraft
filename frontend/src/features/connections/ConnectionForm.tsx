@@ -73,7 +73,8 @@ export function ConnectionForm({ form, onChange, onSaved, onDeleted }: Props) {
 
   const changeType = (type: DBType) => {
     setDatabases([]);
-    onChange({ ...form, config: cleanConfig({ ...config, type, port: 0 }) });
+    // Database names don't carry over between engines.
+    onChange({ ...form, config: cleanConfig({ ...config, type, port: 0, database: "" }) });
   };
 
   return (

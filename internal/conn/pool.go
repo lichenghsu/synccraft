@@ -2,9 +2,11 @@ package conn
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -15,6 +17,9 @@ const PingTimeout = 10 * time.Second
 // ErrNotSupportedYet marks options that validate but cannot be connected yet.
 // Failing loudly beats silently connecting without the tunnel or TLS.
 var ErrNotSupportedYet = errors.New("not supported yet")
+
+// ErrUntrustedCertificate wraps TLS verification failures with a hint on what to change.
+var ErrUntrustedCertificate = errors.New("server certificate is not trusted")
 
 // Pool caches one *sql.DB per distinct ConnectionConfig.
 type Pool struct {
@@ -126,7 +131,23 @@ func open(ctx context.Context, c ConnectionConfig) (*sql.DB, error) {
 	defer cancel()
 	if err := db.PingContext(pingCtx); err != nil {
 		db.Close()
-		return nil, err
+		return nil, explainTLSError(c.Type, err)
 	}
 	return db, nil
+}
+
+func explainTLSError(t DBType, err error) error {
+	var verr *tls.CertificateVerificationError
+	// go-mssqldb flattens the error to a string, so also match the text.
+	if !errors.As(err, &verr) && !strings.Contains(err.Error(), "x509:") {
+		return err
+	}
+	hint := "choose the server's CA certificate"
+	switch t {
+	case SQLServer:
+		hint += `, or enable "Trust server certificate" if it is self-signed on a server you control`
+	case PostgreSQL:
+		hint += ", or pick a lower SSL mode"
+	}
+	return fmt.Errorf("%w: %s (%w)", ErrUntrustedCertificate, hint, err)
 }
