@@ -20,12 +20,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Learning guide (kept local, not tracked)
-docs/guide/
-docs/pdf/
-docs/build-pdf.sh
-docs/SyncCraft-Guide.*
-
 # Local data
 dev/data/
 *.db
