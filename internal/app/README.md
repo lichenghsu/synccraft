@@ -38,3 +38,26 @@ Exercises the three ways Go and React talk to each other; to be removed after M1
 | `Count(ctx, total, intervalMs)` | Counts every `intervalMs` ms and emits a `count:tick` event (payload: `CountTick{current, total}`); returns `ctx.Err()` immediately when the frontend cancels |
 
 The `emit` field lets tests replace the Wails event system; see `hello_service_test.go`.
+
+### FileService
+
+Opens native file dialogs in Go and keeps an allowlist of the paths the user chose. This prevents path attacks: even if the WebView were compromised (e.g. XSS from rendered table data), it could not make the backend open or create arbitrary files.
+
+| Method | Description |
+|---|---|
+| `PickFile(kind)` | Opens the dialog for `kind` (`FileKind` enum), adds the chosen path to the allowlist and returns it; `""` when cancelled |
+
+| `FileKind` | Dialog |
+|---|---|
+| `sqliteOpen` / `sqliteCreate` | Open / save dialog for SQLite databases |
+| `caCert`, `clientCert`, `clientKey` | Open dialog filtered to PEM files |
+| `sshPrivateKey`, `knownHosts` | Open dialog starting in `~/.ssh` with hidden files shown |
+
+Unexported helpers used by other services in this package:
+
+- `checkPaths(cfg)`: fails with `ErrPathNotPicked` unless every path in `cfg.FilePaths()` is on the allowlist. Services must call it before using a config from the frontend.
+- `allow(paths...)`: adds paths the backend itself loaded (e.g. from the saved store).
+
+**These must stay unexported**: every exported method becomes a frontend binding, and an exported `allow` would let the frontend whitelist any path.
+
+`main.go` creates one `FileService` and shares it with the services that need `checkPaths`. Tests replace `prompt` instead of opening real dialogs; `showDialog` itself needs a running app and is not unit tested.

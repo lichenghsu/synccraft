@@ -8,3 +8,21 @@ export interface CountTick {
     "current": number;
     "total": number;
 }
+
+/**
+ * FileKind selects the dialog type and file filters for PickFile.
+ */
+export enum FileKind {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    FileSQLiteOpen = "sqliteOpen",
+    FileSQLiteCreate = "sqliteCreate",
+    FileCACert = "caCert",
+    FileClientCert = "clientCert",
+    FileClientKey = "clientKey",
+    FileSSHPrivateKey = "sshPrivateKey",
+    FileKnownHosts = "knownHosts",
+};

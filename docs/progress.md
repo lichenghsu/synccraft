@@ -26,6 +26,7 @@
 - [x] `internal/conn`: `ConnectionConfig`, `Validate()`, `Key()`, including SSH tunnel and TLS certificate fields
 - [x] Drivers registered: `go-sql-driver/mysql`, `pgx/v5`, `microsoft/go-mssqldb`, `modernc.org/sqlite`
 - [x] Structured DSN builders for all four drivers (`mysql.Config`, `net/url`), PG / SQL Server TLS file parameters
+- [x] `FileService`: file paths only via native dialogs (backend allowlist, `PickFile`), `Validate` rejects relative / unclean paths
 - [ ] `Pool`: cache `*sql.DB`, ping timeout, close on `ServiceShutdown`; `TestConnection` that pings without caching
 - [ ] SSH tunnel (`golang.org/x/crypto/ssh` + known_hosts) and MySQL TLS (`mysql.RegisterTLSConfig`)
 - [ ] `ConnectionService` (Wails): `TestConnection`, `ListDatabases`; remove `HelloService`
