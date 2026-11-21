@@ -67,7 +67,13 @@ Unexported helpers used by other services in this package:
 | Method | Description |
 |---|---|
 | `TestConnection(ctx, cfg)` | `checkPaths`, then open + ping + close (`conn.Ping`); nothing is cached |
-| `ListDatabases(ctx, cfg)` | `checkPaths`, then a pooled connection and `conn.ListDatabases`; never returns `null` |
+| `ListDatabases(ctx, cfg)` | `checkPaths`, then a pooled connection and `conn.ListDatabases` |
+| `ListSaved()` | Saved connections without passwords; their file paths are added to the allowlist |
+| `SaveConnection(c, updateSecrets)` | `checkPaths` + `Validate`, then `store.Save`; closes the pooled connection of the previous settings |
+| `DeleteConnection(id)` | Removes the connection, its keychain entries and its pooled connection |
+| `TestSavedConnection(ctx, id)`, `ListSavedDatabases(ctx, id)` | Same as above for a saved connection; passwords come from the keychain |
 | `ServiceShutdown()` | Called by Wails on exit; closes every pooled connection |
 
-Both methods take `ctx` first, so the frontend can `.cancel()` a slow connection attempt.
+Methods taking `ctx` can be cancelled from the frontend. List methods never return `null` from Go, but the generated types still say `T[] | null`; wrap them with `arr()`.
+
+Saved connections are addressed by id so passwords never travel back to the frontend.
