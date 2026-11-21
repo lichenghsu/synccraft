@@ -1,21 +1,21 @@
 services:
   mysql-src:
-    image: mysql:8.4
+    image: docker.io/library/mysql:8.4
     environment: { MYSQL_ROOT_PASSWORD: root, MYSQL_DATABASE: shop }
     ports: ["3306:3306"]
     volumes: ["./seed/mysql-src:/docker-entrypoint-initdb.d:ro,z"]
   mysql-dst:
-    image: mysql:8.4
+    image: docker.io/library/mysql:8.4
     environment: { MYSQL_ROOT_PASSWORD: root, MYSQL_DATABASE: shop }
     ports: ["3307:3306"]
     volumes: ["./seed/mysql-dst:/docker-entrypoint-initdb.d:ro,z"]
   pg-src:
-    image: postgres:17
+    image: docker.io/library/postgres:17
     environment: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: shop }
     ports: ["5432:5432"]
     volumes: ["./seed/pg-src:/docker-entrypoint-initdb.d:ro,z"]
   pg-dst:
-    image: postgres:17
+    image: docker.io/library/postgres:17
     environment: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: shop }
     ports: ["5433:5432"]
     volumes: ["./seed/pg-dst:/docker-entrypoint-initdb.d:ro,z"]

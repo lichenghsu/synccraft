@@ -61,3 +61,13 @@ Unexported helpers used by other services in this package:
 **These must stay unexported**: every exported method becomes a frontend binding, and an exported `allow` would let the frontend whitelist any path.
 
 `main.go` creates one `FileService` and shares it with the services that need `checkPaths`. Tests replace `prompt` instead of opening real dialogs; `showDialog` itself needs a running app and is not unit tested.
+
+### ConnectionService
+
+| Method | Description |
+|---|---|
+| `TestConnection(ctx, cfg)` | `checkPaths`, then open + ping + close (`conn.Ping`); nothing is cached |
+| `ListDatabases(ctx, cfg)` | `checkPaths`, then a pooled connection and `conn.ListDatabases`; never returns `null` |
+| `ServiceShutdown()` | Called by Wails on exit; closes every pooled connection |
+
+Both methods take `ctx` first, so the frontend can `.cancel()` a slow connection attempt.

@@ -1,6 +1,6 @@
 # internal/conn
 
-Database connection layer: connection config, DSN building and driver registration. The connection pool (`Pool`) will live here too. Does not import Wails.
+Database connection layer: connection config, DSN building, driver registration and the connection pool. Does not import Wails.
 
 ## Files
 
@@ -9,6 +9,8 @@ Database connection layer: connection config, DSN building and driver registrati
 | `config.go` | `DBType`, `ConnectionConfig`, `SSHTunnel`, `TLSFiles`, `Validate()`, `Key()`, errors |
 | `dsn.go` | `buildDSN(c) (driver, dsn, err)` and one DSN builder per engine |
 | `drivers.go` | Blank imports that register the four drivers with `database/sql` |
+| `pool.go` | `Pool` (one cached `*sql.DB` per config) and `Ping` (open, ping, close) |
+| `databases.go` | `ListDatabases`: non-system databases per engine |
 
 ## Drivers
 
@@ -51,10 +53,39 @@ Host keys are always checked against known_hosts; an empty `KnownHostsPath` mean
 
 `SSH.Password` and `SSH.Passphrase` are secrets like `Password`: when saving, they go to the OS keychain, never into the JSON file.
 
+## Pool
+
+- `Get(ctx, cfg)` returns a cached, pinged `*sql.DB`, keyed by `cfg.Key()`. Callers must not `Close` it.
+- Opening happens **outside the lock**, so a slow server doesn't block other configs; if two `Get`s race for the same config, the loser closes its DB and returns the winner's.
+- Failed opens are not cached. Ping is bounded by `PingTimeout` (10 s) and by the caller's ctx (frontend `.cancel()`).
+- SQLite gets `MaxOpenConns(1)` to avoid `database is locked`; servers get 8 open / 4 idle / 5 min idle time.
+- `Ping(ctx, cfg)` is for "Test connection": nothing is cached.
+- `Close(cfg)` / `CloseAll()`; `ConnectionService.ServiceShutdown` calls `CloseAll`.
+
+**`ErrNotSupportedYet`**: SSH tunnels and MySQL TLS files pass `Validate` but `open` refuses them, rather than silently connecting without the tunnel or TLS.
+
+## ListDatabases
+
+| DB | Source | Hidden |
+|---|---|---|
+| MySQL | `information_schema.SCHEMATA` | `information_schema`, `mysql`, `performance_schema`, `sys` |
+| PostgreSQL | `pg_database` | templates and databases that disallow connections |
+| SQL Server | `sys.databases` | `master`, `tempdb`, `model`, `msdb` (`database_id <= 4`) |
+| SQLite | `pragma_database_list` | none (normally just `main`) |
+
 ## Tests
 
 ```bash
 go test ./internal/conn/...
 ```
 
-DSN tests need no database: each generated DSN is parsed back with the driver's own parser (`mysql.ParseDSN`, `pgconn.ParseConfig`, `msdsn.Parse`) and compared. The SQLite test opens a real file in a temp directory.
+DSN tests need no database: each generated DSN is parsed back with the driver's own parser (`mysql.ParseDSN`, `pgconn.ParseConfig`, `msdsn.Parse`) and compared. SQLite tests and the pool tests open real files in a temp directory.
+
+Integration tests run against `dev/docker-compose.yml` (build tag `integration`):
+
+```bash
+podman compose -f dev/docker-compose.yml up -d
+go test -tags integration ./internal/conn/...
+```
+
+They list databases on MySQL, PostgreSQL and SQL Server (creating `synccraft_it` on SQL Server, which has no seed), and log in to MySQL and PostgreSQL as a temporary user whose password is `` p@ss/w;rd 'x' ``.
