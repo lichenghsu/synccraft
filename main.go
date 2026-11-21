@@ -13,11 +13,14 @@ import (
 var assets embed.FS
 
 func main() {
+	files := app.NewFileService()
+
 	a := application.New(application.Options{
 		Name:        "SyncCraft",
 		Description: "Database schema & data compare tool",
 		Services: []application.Service{
 			application.NewService(app.NewHelloService()),
+			application.NewService(files),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

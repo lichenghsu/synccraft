@@ -1,43 +1,43 @@
 # frontend
 
-React 19 + TypeScript 7 + Vite 8。由 `wails3 dev` / `wails3 build` 驅動，通常不需要單獨執行 npm 指令。
+React 19 + TypeScript 7 + Vite 8. Driven by `wails3 dev` / `wails3 build`; you rarely need to run npm commands directly.
 
-## 結構
+## Layout
 
 ```
 frontend/
-├── bindings/        # 由 Go 自動產生，請勿手改（需提交，CI 會檢查是否同步）
-│   ├── events/      #   事件名稱常數
-│   └── github.com/lichenghsu/synccraft/internal/app/   # Service 函式與型別
+├── bindings/        # generated from Go, do not edit (commit it; CI checks it is in sync)
+│   ├── events/      #   event name constants
+│   └── github.com/lichenghsu/synccraft/internal/app/   # Service functions and types
 ├── src/
-│   ├── api/         # 包裝 Go 綁定（見 api/README.md）
-│   ├── hooks/       # 共用 React hooks（見 hooks/README.md）
-│   ├── types.ts     # 前端自己的型別
+│   ├── api/         # wrappers around the Go bindings (see api/README.md)
+│   ├── hooks/       # shared React hooks (see hooks/README.md)
+│   ├── types.ts     # frontend-only types
 │   ├── App.tsx
 │   └── style.css
 ├── vite.config.ts
 └── tsconfig.json
 ```
 
-## 路徑別名
+## Path aliases
 
-| 別名 | 指向 | 用途 |
+| Alias | Points to | Usage |
 |---|---|---|
 | `@bindings/*` | `bindings/github.com/lichenghsu/synccraft/*` | `import { HelloService } from "@bindings/internal/app"` |
 | `@events` | `bindings/events` | `import { CountTick } from "@events"` |
 
-別名要在 **`tsconfig.json`（型別檢查）與 `vite.config.ts`（打包）兩邊同時設定**。TypeScript 7 已移除 `baseUrl`，`paths` 直接相對於 tsconfig 檔案解析。
+Aliases must be set in **both `tsconfig.json` (type checking) and `vite.config.ts` (bundling)**. TypeScript 7 removed `baseUrl`; `paths` resolve relative to the tsconfig file.
 
-Go module 路徑若改變，這兩個檔案的別名也要跟著改。
+If the Go module path changes, update the aliases in both files.
 
-## 指令
+## Commands
 
 ```bash
-npm run build      # tsc 型別檢查 + vite build → dist/（被 Go 的 go:embed 嵌入）
-npm run dev        # 只啟動 Vite；一般請用專案根目錄的 wails3 dev
+npm run build      # tsc type check + vite build → dist/ (embedded by Go's go:embed)
+npm run dev        # Vite only; normally use wails3 dev from the project root
 ```
 
-## 其他
+## Notes
 
-- `.npmrc` 的 `minimum-release-age=10080`：不安裝發佈未滿 7 天的版本，降低套件被投毒的風險。npm 目前不支援、會印警告；pnpm / bun 才會生效。
-- `noUncheckedIndexedAccess` 已開啟：`arr[i]` 的型別是 `T | undefined`。
+- `minimum-release-age=10080` in `.npmrc`: don't install versions published less than 7 days ago, to reduce supply-chain poisoning risk. npm doesn't support it yet and prints a warning; it only takes effect with pnpm / bun.
+- `noUncheckedIndexedAccess` is on: `arr[i]` has type `T | undefined`.
