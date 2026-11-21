@@ -23,6 +23,7 @@ const (
 	FileClientKey     FileKind = "clientKey"
 	FileSSHPrivateKey FileKind = "sshPrivateKey"
 	FileKnownHosts    FileKind = "knownHosts"
+	FileKubeconfig    FileKind = "kubeconfig"
 )
 
 var (
@@ -33,7 +34,7 @@ var (
 type dialogSpec struct {
 	title   string
 	save    bool
-	inSSH   bool // start in ~/.ssh and show hidden files
+	dir     string // start in ~/<dir> and show hidden files
 	filters []application.FileFilter
 }
 
@@ -49,8 +50,9 @@ var dialogSpecs = map[FileKind]dialogSpec{
 	FileCACert:        {title: "Choose CA certificate", filters: []application.FileFilter{pemFilter, anyFilter}},
 	FileClientCert:    {title: "Choose client certificate", filters: []application.FileFilter{pemFilter, anyFilter}},
 	FileClientKey:     {title: "Choose client key", filters: []application.FileFilter{pemFilter, anyFilter}},
-	FileSSHPrivateKey: {title: "Choose SSH private key", inSSH: true, filters: []application.FileFilter{anyFilter}},
-	FileKnownHosts:    {title: "Choose known_hosts file", inSSH: true, filters: []application.FileFilter{anyFilter}},
+	FileSSHPrivateKey: {title: "Choose SSH private key", dir: ".ssh", filters: []application.FileFilter{anyFilter}},
+	FileKnownHosts:    {title: "Choose known_hosts file", dir: ".ssh", filters: []application.FileFilter{anyFilter}},
+	FileKubeconfig:    {title: "Choose kubeconfig", dir: ".kube", filters: []application.FileFilter{anyFilter}},
 }
 
 // FileService opens native file dialogs and remembers which paths the user
@@ -109,6 +111,19 @@ func (s *FileService) checkPaths(c *conn.ConnectionConfig) error {
 	return nil
 }
 
+// checkFile is checkPaths for a single optional path ("" passes).
+func (s *FileService) checkFile(p string) error {
+	if p == "" {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.allowed[p]; !ok {
+		return fmt.Errorf("%w: %q", ErrPathNotPicked, p)
+	}
+	return nil
+}
+
 func showDialog(spec dialogSpec) (string, error) {
 	app := application.Get()
 	if app == nil {
@@ -116,9 +131,9 @@ func showDialog(spec dialogSpec) (string, error) {
 	}
 
 	dir := ""
-	if spec.inSSH {
+	if spec.dir != "" {
 		if home, err := os.UserHomeDir(); err == nil {
-			dir = filepath.Join(home, ".ssh")
+			dir = filepath.Join(home, spec.dir)
 		}
 	}
 
@@ -133,7 +148,7 @@ func showDialog(spec dialogSpec) (string, error) {
 		return d.PromptForSingleSelection()
 	}
 
-	d := app.Dialog.OpenFile().SetTitle(spec.title).CanChooseFiles(true).ShowHiddenFiles(spec.inSSH)
+	d := app.Dialog.OpenFile().SetTitle(spec.title).CanChooseFiles(true).ShowHiddenFiles(spec.dir != "")
 	for _, f := range spec.filters {
 		d.AddFilter(f.DisplayName, f.Pattern)
 	}

@@ -38,3 +38,15 @@ The bastion also mounts the Unix socket directories of `mysql-src` (`/run/mysql-
 | Data | `INSERT` id=3, `UPDATE` id=2 (different email), `DELETE` id=9 |
 
 `pg-src` also has a mixed-case table `"UserLog"` to test identifier quoting; dst lacks it, so schema comparison should report "table added".
+
+## Kubernetes (kind)
+
+`kind/setup.sh` creates a kind cluster `synccraft` with the CloudNativePG operator (Helm chart pinned in the script) and a one-instance `Cluster` named `pg` in namespace `synccraft`, plus a plain `pg-plain` service. It uses docker if available (skipping a configured credential helper that isn't installed, since the images are public), otherwise rootless podman, which needs systemd `Delegate=yes`.
+
+```bash
+dev/kind/setup.sh
+go test -tags kind ./internal/conn/...
+kind delete cluster --name synccraft
+```
+
+In the app: Connect → Kubernetes, context `kind-synccraft`, namespace `synccraft`, target CloudNativePG, cluster `pg`.

@@ -13,13 +13,16 @@ import {
 } from "../../api/wails";
 import { useCancellable } from "../../hooks/useCancellable";
 import { FileField } from "./FileField";
+import { K8sSection } from "./K8sSection";
 import { SecretField } from "./SecretField";
 import {
   cleanConfig,
   DB_LABEL,
   DB_TYPES,
   DEFAULT_PORT,
+  newK8s,
   newSSH,
+  ROUTES,
   SECRET,
   SOCKET_PLACEHOLDER,
   supportsSocket,
@@ -28,6 +31,7 @@ import {
   toDraft,
   unusedSSHSecrets,
   type FormState,
+  type Route,
   type SecretName,
 } from "./model";
 
@@ -42,7 +46,11 @@ type Notice = { kind: "ok" | "err"; text: string } | null;
 
 export function ConnectionForm({ form, onChange, onSaved, onDeleted }: Props) {
   const { config } = form;
-  const ssh = form.useSSH ? (config.ssh ?? null) : null;
+  const ssh = form.route === "ssh" ? (config.ssh ?? null) : null;
+  const k8s = form.route === "k8s" ? (config.k8s ?? null) : null;
+  // CNPG supplies host, credentials and CA, so those fields are hidden.
+  const cnpgMode =
+    !!k8s && form.k8sTarget === "cnpg" && config.type === DBType.PostgreSQL;
   const [notice, setNotice] = useState<Notice>(null);
   const [databases, setDatabases] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -160,16 +168,18 @@ export function ConnectionForm({ form, onChange, onSaved, onDeleted }: Props) {
     });
   };
 
-  // Unticking keeps the SSH fields in the form; toDraft drops them.
-  const toggleSSH = (on: boolean) =>
+  // Switching routes keeps the other routes' fields; toDraft drops them.
+  const changeRoute = (route: Route) =>
     onChange({
       ...form,
-      useSSH: on,
+      route,
       config: {
         ...config,
-        ssh: config.ssh ?? newSSH(),
+        ssh: config.ssh ?? (route === "ssh" ? newSSH() : null),
+        k8s: config.k8s ?? (route === "k8s" ? newK8s() : null),
         // With a tunnel, 127.0.0.1 means the SSH server itself.
-        host: on && !config.host.trim() ? "127.0.0.1" : config.host,
+        host:
+          route === "ssh" && !config.host.trim() ? "127.0.0.1" : config.host,
       },
     });
 
@@ -236,140 +246,167 @@ export function ConnectionForm({ form, onChange, onSaved, onDeleted }: Props) {
         />
       ) : (
         <>
-          <div className="section">
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={!!ssh}
-                onChange={(e) => toggleSSH(e.target.checked)}
-              />
-              Connect through an SSH tunnel
-            </label>
-            {ssh && (
-              <div className="ssh-fields">
-                <div className="grid2">
-                  <label className="field grow">
-                    <span className="label">SSH host</span>
+          <div className="field">
+            <span className="label">Connect</span>
+            <div className="segmented" role="radiogroup" aria-label="Route">
+              {ROUTES.map((r) => (
+                <button
+                  key={r.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={form.route === r.value}
+                  className={form.route === r.value ? "on" : ""}
+                  onClick={() => changeRoute(r.value)}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {k8s && (
+            <K8sSection
+              dbType={config.type}
+              k8s={k8s}
+              target={form.k8sTarget}
+              onChange={(next) => set({ k8s: next })}
+              onTargetChange={(k8sTarget) => onChange({ ...form, k8sTarget })}
+            />
+          )}
+
+          {ssh && (
+            <div className="section">
+              {ssh && (
+                <div className="ssh-fields">
+                  <div className="grid2">
+                    <label className="field grow">
+                      <span className="label">SSH host</span>
+                      <input
+                        value={ssh.host}
+                        onChange={(e) => setSSH({ host: e.target.value })}
+                        required
+                      />
+                    </label>
+                    <label className="field port">
+                      <span className="label">Port</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={65535}
+                        value={ssh.port || ""}
+                        placeholder="22"
+                        onChange={(e) =>
+                          setSSH({ port: Number(e.target.value) || 0 })
+                        }
+                      />
+                    </label>
+                  </div>
+                  <label className="field">
+                    <span className="label">SSH user</span>
                     <input
-                      value={ssh.host}
-                      onChange={(e) => setSSH({ host: e.target.value })}
+                      value={ssh.user}
+                      onChange={(e) => setSSH({ user: e.target.value })}
+                      autoComplete="off"
                       required
                     />
                   </label>
-                  <label className="field port">
-                    <span className="label">Port</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={65535}
-                      value={ssh.port || ""}
-                      placeholder="22"
-                      onChange={(e) =>
-                        setSSH({ port: Number(e.target.value) || 0 })
-                      }
-                    />
-                  </label>
-                </div>
-                <label className="field">
-                  <span className="label">SSH user</span>
-                  <input
-                    value={ssh.user}
-                    onChange={(e) => setSSH({ user: e.target.value })}
-                    autoComplete="off"
-                    required
-                  />
-                </label>
 
-                <div className="field">
-                  <span className="label">Authentication</span>
-                  <div
-                    className="segmented"
-                    role="radiogroup"
-                    aria-label="SSH authentication"
-                  >
-                    {SSH_AUTHS.map((a) => (
-                      <button
-                        key={a.value}
-                        type="button"
-                        role="radio"
-                        aria-checked={ssh.auth === a.value}
-                        className={ssh.auth === a.value ? "on" : ""}
-                        onClick={() => changeSSHAuth(a.value)}
-                      >
-                        {a.label}
-                      </button>
-                    ))}
+                  <div className="field">
+                    <span className="label">Authentication</span>
+                    <div
+                      className="segmented"
+                      role="radiogroup"
+                      aria-label="SSH authentication"
+                    >
+                      {SSH_AUTHS.map((a) => (
+                        <button
+                          key={a.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={ssh.auth === a.value}
+                          className={ssh.auth === a.value ? "on" : ""}
+                          onClick={() => changeSSHAuth(a.value)}
+                        >
+                          {a.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                {ssh.auth === SSHAuthMethod.SSHAuthPassword && (
-                  <SecretField
-                    label="SSH password"
-                    value={ssh.password}
-                    saved={saved}
-                    dirty={isDirty(SECRET.sshPassword)}
-                    onChange={(password) =>
-                      markDirty([SECRET.sshPassword], {
-                        ssh: { ...ssh, password },
-                      })
-                    }
-                    onRevert={() =>
-                      revert(SECRET.sshPassword, {
-                        ssh: { ...ssh, password: "" },
-                      })
-                    }
-                  />
-                )}
-                {ssh.auth === SSHAuthMethod.SSHAuthPrivateKey && (
-                  <>
-                    <FileField
-                      label="Private key"
-                      value={ssh.privateKeyPath}
-                      choices={[
-                        { kind: FileKind.FileSSHPrivateKey, label: "Choose…" },
-                      ]}
-                      onChange={(privateKeyPath) => setSSH({ privateKeyPath })}
-                    />
+                  {ssh.auth === SSHAuthMethod.SSHAuthPassword && (
                     <SecretField
-                      label="Passphrase (if the key is encrypted)"
-                      value={ssh.passphrase}
+                      label="SSH password"
+                      value={ssh.password}
                       saved={saved}
-                      dirty={isDirty(SECRET.sshPassphrase)}
-                      onChange={(passphrase) =>
-                        markDirty([SECRET.sshPassphrase], {
-                          ssh: { ...ssh, passphrase },
+                      dirty={isDirty(SECRET.sshPassword)}
+                      onChange={(password) =>
+                        markDirty([SECRET.sshPassword], {
+                          ssh: { ...ssh, password },
                         })
                       }
                       onRevert={() =>
-                        revert(SECRET.sshPassphrase, {
-                          ssh: { ...ssh, passphrase: "" },
+                        revert(SECRET.sshPassword, {
+                          ssh: { ...ssh, password: "" },
                         })
                       }
                     />
-                  </>
-                )}
-                {ssh.auth === SSHAuthMethod.SSHAuthAgent && (
-                  <p className="hint">
-                    Uses the keys loaded in your SSH agent (SSH_AUTH_SOCK).
-                  </p>
-                )}
+                  )}
+                  {ssh.auth === SSHAuthMethod.SSHAuthPrivateKey && (
+                    <>
+                      <FileField
+                        label="Private key"
+                        value={ssh.privateKeyPath}
+                        choices={[
+                          {
+                            kind: FileKind.FileSSHPrivateKey,
+                            label: "Choose…",
+                          },
+                        ]}
+                        onChange={(privateKeyPath) =>
+                          setSSH({ privateKeyPath })
+                        }
+                      />
+                      <SecretField
+                        label="Passphrase (if the key is encrypted)"
+                        value={ssh.passphrase}
+                        saved={saved}
+                        dirty={isDirty(SECRET.sshPassphrase)}
+                        onChange={(passphrase) =>
+                          markDirty([SECRET.sshPassphrase], {
+                            ssh: { ...ssh, passphrase },
+                          })
+                        }
+                        onRevert={() =>
+                          revert(SECRET.sshPassphrase, {
+                            ssh: { ...ssh, passphrase: "" },
+                          })
+                        }
+                      />
+                    </>
+                  )}
+                  {ssh.auth === SSHAuthMethod.SSHAuthAgent && (
+                    <p className="hint">
+                      Uses the keys loaded in your SSH agent (SSH_AUTH_SOCK).
+                    </p>
+                  )}
 
-                <FileField
-                  label="known_hosts (default: ~/.ssh/known_hosts)"
-                  optional
-                  value={ssh.knownHostsPath}
-                  choices={[
-                    { kind: FileKind.FileKnownHosts, label: "Choose…" },
-                  ]}
-                  onChange={(knownHostsPath) => setSSH({ knownHostsPath })}
-                />
-                <p className="hint">
-                  The server's host key must already be in known_hosts. Connect
-                  once with ssh to verify and add it.
-                </p>
-              </div>
-            )}
-          </div>
+                  <FileField
+                    label="known_hosts (default: ~/.ssh/known_hosts)"
+                    optional
+                    value={ssh.knownHostsPath}
+                    choices={[
+                      { kind: FileKind.FileKnownHosts, label: "Choose…" },
+                    ]}
+                    onChange={(knownHostsPath) => setSSH({ knownHostsPath })}
+                  />
+                  <p className="hint">
+                    The server's host key must already be in known_hosts.
+                    Connect once with ssh to verify and add it.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {ssh && supportsSocket(config.type) && (
             <div className="field">
@@ -430,7 +467,7 @@ export function ConnectionForm({ form, onChange, onSaved, onDeleted }: Props) {
             </label>
           )}
 
-          {!socketMode && (
+          {!socketMode && !k8s && (
             <div className="grid2">
               <label className="field grow">
                 <span className="label">
@@ -458,32 +495,34 @@ export function ConnectionForm({ form, onChange, onSaved, onDeleted }: Props) {
             </div>
           )}
 
-          <div className="grid2">
-            <label className="field grow">
-              <span className="label">Database user</span>
-              <input
-                value={config.user}
-                onChange={(e) => set({ user: e.target.value })}
-                autoComplete="off"
-                required={!socketMode}
-                placeholder={
-                  socketMode
-                    ? `defaults to SSH user${ssh?.user ? ` (${ssh.user})` : ""}`
-                    : ""
+          {!cnpgMode && (
+            <div className="grid2">
+              <label className="field grow">
+                <span className="label">Database user</span>
+                <input
+                  value={config.user}
+                  onChange={(e) => set({ user: e.target.value })}
+                  autoComplete="off"
+                  required={!socketMode}
+                  placeholder={
+                    socketMode
+                      ? `defaults to SSH user${ssh?.user ? ` (${ssh.user})` : ""}`
+                      : ""
+                  }
+                />
+              </label>
+              <SecretField
+                label="Password"
+                value={config.password}
+                saved={saved}
+                dirty={isDirty(SECRET.password)}
+                onChange={(password) =>
+                  markDirty([SECRET.password], { password })
                 }
+                onRevert={() => revert(SECRET.password, { password: "" })}
               />
-            </label>
-            <SecretField
-              label="Password"
-              value={config.password}
-              saved={saved}
-              dirty={isDirty(SECRET.password)}
-              onChange={(password) =>
-                markDirty([SECRET.password], { password })
-              }
-              onRevert={() => revert(SECRET.password, { password: "" })}
-            />
-          </div>
+            </div>
+          )}
 
           <label className="field">
             <span className="label">Database</span>
@@ -492,7 +531,9 @@ export function ConnectionForm({ form, onChange, onSaved, onDeleted }: Props) {
                 list="conn-databases"
                 value={config.database}
                 onChange={(e) => set({ database: e.target.value })}
-                placeholder="optional"
+                placeholder={
+                  cnpgMode ? "default: the cluster's app database" : "optional"
+                }
               />
               <datalist id="conn-databases">
                 {databases.map((db) => (
@@ -510,7 +551,7 @@ export function ConnectionForm({ form, onChange, onSaved, onDeleted }: Props) {
             </div>
           </label>
 
-          {config.type === DBType.PostgreSQL && (
+          {config.type === DBType.PostgreSQL && !cnpgMode && (
             <label className="field">
               <span className="label">SSL mode</span>
               <select
@@ -540,7 +581,7 @@ export function ConnectionForm({ form, onChange, onSaved, onDeleted }: Props) {
             </label>
           )}
 
-          {!socketMode && (
+          {!socketMode && !cnpgMode && (
             <details className="section" open={!!config.tls}>
               <summary>TLS certificates</summary>
               <FileField

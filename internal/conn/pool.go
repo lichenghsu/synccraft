@@ -29,14 +29,18 @@ type Pool struct {
 	dbs map[string]*opened
 }
 
-// opened is a DB plus the SSH tunnel it dials through, closed together.
+// opened is a DB plus the tunnel it dials through, closed together.
 type opened struct {
 	db     *sql.DB
-	tunnel *sshTunnel
+	tunnel dialer
 }
 
 func (o *opened) Close() error {
-	return errors.Join(o.db.Close(), o.tunnel.Close())
+	err := o.db.Close()
+	if o.tunnel != nil {
+		err = errors.Join(err, o.tunnel.Close())
+	}
+	return err
 }
 
 func NewPool() *Pool {
@@ -126,20 +130,33 @@ func open(ctx context.Context, c ConnectionConfig) (*opened, error) {
 		return nil, err
 	}
 
-	var tun *sshTunnel
-	if c.SSH != nil {
-		var err error
-		if tun, err = newSSHTunnel(ctx, c.SSH); err != nil {
+	var opts openOptions
+	switch {
+	case c.SSH != nil:
+		tun, err := newSSHTunnel(ctx, c.SSH)
+		if err != nil {
 			return nil, err
 		}
+		opts.dial = tun
+	case c.K8s != nil:
+		fw, err := newK8sForwarder(c)
+		if err != nil {
+			return nil, err
+		}
+		if c, err = prepareK8s(ctx, c, fw, &opts); err != nil {
+			return nil, err
+		}
+		opts.dial = fw
 	}
 
-	db, err := openDB(c, tun)
+	db, err := openDB(c, opts)
 	if err != nil {
-		tun.Close()
+		if opts.dial != nil {
+			opts.dial.Close()
+		}
 		return nil, err
 	}
-	o := &opened{db: db, tunnel: tun}
+	o := &opened{db: db, tunnel: opts.dial}
 
 	if c.Type == SQLite {
 		db.SetMaxOpenConns(1) // avoid "database is locked" between our own connections

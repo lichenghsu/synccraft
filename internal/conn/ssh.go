@@ -181,9 +181,9 @@ func (t *sshTunnel) Close() error {
 	return err
 }
 
-// hostDialer lets go-mssqldb resolve the database host on the SSH server's side.
+// hostDialer lets go-mssqldb resolve the database host at the tunnel's far end.
 type hostDialer struct {
-	*sshTunnel
+	dialer
 	host string
 }
 

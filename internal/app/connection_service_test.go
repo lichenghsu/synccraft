@@ -201,3 +201,18 @@ func TestDraftUsesStoredSecrets(t *testing.T) {
 		t.Errorf("unknown id = %v, want ErrNotFound", err)
 	}
 }
+
+func TestK8sDiscoveryChecksKubeconfigPath(t *testing.T) {
+	s, _ := newTestConnectionService(t)
+	ctx := context.Background()
+	evil := "/etc/kubernetes/admin.conf"
+	if _, err := s.K8sContexts(evil); !errors.Is(err, ErrPathNotPicked) {
+		t.Errorf("K8sContexts = %v", err)
+	}
+	if _, err := s.K8sNamespaces(ctx, evil, ""); !errors.Is(err, ErrPathNotPicked) {
+		t.Errorf("K8sNamespaces = %v", err)
+	}
+	if _, err := s.K8sTargets(ctx, evil, "", "db"); !errors.Is(err, ErrPathNotPicked) {
+		t.Errorf("K8sTargets = %v", err)
+	}
+}

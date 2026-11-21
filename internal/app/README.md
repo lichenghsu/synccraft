@@ -41,9 +41,11 @@ Opens native file dialogs in Go and keeps an allowlist of the paths the user cho
 | `sqliteOpen` / `sqliteCreate` | Open / save dialog for SQLite databases |
 | `caCert`, `clientCert`, `clientKey` | Open dialog filtered to PEM files |
 | `sshPrivateKey`, `knownHosts` | Open dialog starting in `~/.ssh` with hidden files shown |
+| `kubeconfig` | Open dialog starting in `~/.kube` with hidden files shown |
 
 Unexported helpers used by other services in this package:
 
+- `checkFile(path)`: the same check for one optional path (`""` passes), used by the Kubernetes discovery methods.
 - `checkPaths(cfg)`: fails with `ErrPathNotPicked` unless every path in `cfg.FilePaths()` is on the allowlist. Services must call it before using a config from the frontend.
 - `allow(paths...)`: adds paths the backend itself loaded (e.g. from the saved store).
 
@@ -58,6 +60,7 @@ Unexported helpers used by other services in this package:
 | `TestConnection(ctx, draft)` | `checkPaths`, then connect, detect the server and disconnect (`conn.Probe`); returns `ServerInfo` (e.g. MariaDB 10.11.6); nothing is cached |
 | `ListDatabases(ctx, draft)` | `checkPaths`, then a pooled connection and `conn.ListDatabases` |
 | `DetectSocket(ctx, draft)` | Finds the database's Unix socket on the draft's SSH server (`conn.DetectSocket`) |
+| `K8sContexts(kubeconfig)`, `K8sNamespaces(ctx, kubeconfig, context)`, `K8sTargets(ctx, kubeconfig, context, namespace)` | Kubernetes discovery for the form; an explicit kubeconfig path must come from `PickFile` |
 | `ListSaved()` | Saved connections without passwords; their file paths are added to the allowlist |
 | `SaveConnection(c, updateSecrets)` | `checkPaths` + `Validate`, then `store.Save` (only the named secrets are written); closes the pooled connection of the previous settings |
 | `DeleteConnection(id)` | Removes the connection, its keychain entries and its pooled connection |
