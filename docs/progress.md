@@ -1,22 +1,34 @@
-# 開發進度
+# Development Progress
 
-| 里程碑 | 內容 | 狀態 |
+| Milestone | Scope | Status |
 |---|---|---|
-| M0 | 專案骨架：Wails v3 + React/TS、Service 範例、hooks、測試資料庫、Renovate、CI | ✅ 完成 |
-| M1 | 連線管理：連線池、四種 driver、結構化 DSN、密碼存入系統 keychain | ⏳ 未開始 |
-| M2 | Introspection 與資料表瀏覽：Dialect 介面、四種資料庫的 metadata 查詢 | ⏳ 未開始 |
-| M3 | 結構比對：比對演算法、依目標方言產生 DDL、交易執行 | ⏳ 未開始 |
-| M4 | 資料同步：參數化 DML、值正規化、事件進度與取消、大表串流比對 | ⏳ 未開始 |
-| M5 | 雙表並排比對：筆數、欄位對應、逐列差異、欄位統計、匯出 CSV | ⏳ 未開始 |
-| M6 | 打包發佈：三平台安裝檔、release workflow、簽章、自動更新 | ⏳ 未開始 |
+| M0 | Project scaffold: Wails v3 + React/TS, example Service, hooks, test databases, Renovate, CI | ✅ Done |
+| M1 | Connection management: connection pool, four drivers, structured DSNs, passwords in the OS keychain | 🚧 In progress |
+| M2 | Introspection and table browser: Dialect interface, metadata queries for all four databases | ⏳ Not started |
+| M3 | Schema comparison: diff algorithm, DDL in the target dialect, transactional execution | ⏳ Not started |
+| M4 | Data sync: parameterized DML, value normalization, progress events and cancellation, streaming diff for large tables | ⏳ Not started |
+| M5 | Side-by-side table comparison: row counts, column mapping, row diff, column statistics, CSV export | ⏳ Not started |
+| M6 | Packaging and release: installers for three platforms, release workflow, code signing, auto-update | ⏳ Not started |
 
-## M0 完成項目
+## M0 checklist
 
-- [x] `wails3 init -t react`，升級至 React 19 / TypeScript 7 / Vite 8
-- [x] `@bindings`、`@events` 路徑別名
-- [x] `internal/app/HelloService`：呼叫與錯誤、可取消呼叫、有型別的事件（含單元測試）
-- [x] hooks：`useAsync`、`useCancellable`、`useWailsEvent`
-- [x] `dev/docker-compose.yml` 與種子資料
-- [x] `renovate.json`、`.github/workflows/ci.yml`
-- [x] LICENSE（MIT）、README（英文 / 繁體中文）
-- [ ] GitHub：安裝 Renovate App、設定 `main` 分支保護
+- [x] `wails3 init -t react`, upgraded to React 19 / TypeScript 7 / Vite 8
+- [x] `@bindings` and `@events` path aliases
+- [x] `internal/app/HelloService`: calls and errors, cancellable calls, typed events (with unit tests)
+- [x] Hooks: `useAsync`, `useCancellable`, `useWailsEvent`
+- [x] `dev/docker-compose.yml` and seed data
+- [x] `renovate.json`, `.github/workflows/ci.yml`
+- [x] LICENSE (MIT), README (English / Traditional Chinese)
+- [ ] GitHub: install the Renovate App, set up branch protection on `main`
+
+## M1 checklist
+
+- [x] `internal/conn`: `ConnectionConfig`, `Validate()`, `Key()`, including SSH tunnel and TLS certificate fields
+- [x] Drivers registered: `go-sql-driver/mysql`, `pgx/v5`, `microsoft/go-mssqldb`, `modernc.org/sqlite`
+- [x] Structured DSN builders for all four drivers (`mysql.Config`, `net/url`), PG / SQL Server TLS file parameters
+- [ ] `Pool`: cache `*sql.DB`, ping timeout, close on `ServiceShutdown`; `TestConnection` that pings without caching
+- [ ] SSH tunnel (`golang.org/x/crypto/ssh` + known_hosts) and MySQL TLS (`mysql.RegisterTLSConfig`)
+- [ ] `ConnectionService` (Wails): `TestConnection`, `ListDatabases`; remove `HelloService`
+- [ ] Store: `os.UserConfigDir` + OS keychain + atomic writes
+- [ ] React: `ConnectionsProvider`, `ConnectionForm`, saved-connection dropdown, native file dialog for SQLite
+- **Acceptance**: all four databases connect and list their databases; passwords never appear in the JSON file or DevTools
