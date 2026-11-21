@@ -1,40 +1,40 @@
 # internal/app
 
-Wails 綁定層。這裡每個 Service 的**公開方法**都會自動產生前端可呼叫的 TypeScript 函式（輸出到 `frontend/bindings/github.com/lichenghsu/synccraft/internal/app/`）。
+Wails binding layer. Every **exported method** of a Service here gets a generated TypeScript function the frontend can call (output to `frontend/bindings/github.com/lichenghsu/synccraft/internal/app/`).
 
-## 原則
+## Principles
 
-- **只有這個套件 import Wails**。資料庫連線、比對演算法等核心邏輯放在 `internal/` 的其他套件，這裡只負責參數轉換和呼叫下層，方便用 `go test` 單獨測試核心邏輯。
-- exported 識別字的 doc comment 會帶進產生的 TS 綁定，保持簡短的英文。
-- 改了方法簽章後要重新產生綁定並提交：`wails3 generate bindings -clean=true -ts -i`。CI 會檢查綁定是否同步。
+- **This is the only package that imports Wails.** Core logic such as database connections and comparison algorithms lives in other `internal/` packages; this layer only converts parameters and calls down, so core logic can be tested on its own with `go test`.
+- Doc comments on exported identifiers are copied into the generated TS bindings; keep them short and in English.
+- After changing a method signature, regenerate the bindings and commit them: `wails3 generate bindings -clean=true -ts -i`. CI checks that bindings are in sync.
 
-## Go → TypeScript 對應
+## Go → TypeScript mapping
 
 | Go | TypeScript |
 |---|---|
-| `func X() (T, error)` | `X(): CancellablePromise<T>`；error 非 nil 時 Promise reject，訊息在 `e.message` |
-| 第一個參數是 `context.Context` | 前端不用傳；前端對 promise 呼叫 `.cancel()` 時，這個 ctx 會被取消 |
-| struct | `models.ts` 裡的 interface（依 `json` tag 命名） |
-| nil slice | `null`（型別會標成 `T[] \| null`） |
+| `func X() (T, error)` | `X(): CancellablePromise<T>`; a non-nil error rejects the Promise, message in `e.message` |
+| First parameter is `context.Context` | Not passed by the frontend; calling `.cancel()` on the promise cancels this ctx |
+| struct | An interface in `models.ts` (named by `json` tags) |
+| nil slice | `null` (typed as `T[] \| null`) |
 
-## 事件
+## Events
 
-用 `application.RegisterEvent[T]("name")` 註冊後，產生器會輸出：
+After registering with `application.RegisterEvent[T]("name")`, the generator outputs:
 
-- `frontend/bindings/events/index.ts`：事件名稱常數（前端用 `@events` 匯入）
-- `@wailsio/runtime` 的型別擴充：`Events.On(name, ev => ev.data)` 的 `ev.data` 型別自動推導
+- `frontend/bindings/events/index.ts`: event name constants (imported via `@events` in the frontend)
+- A type augmentation for `@wailsio/runtime`: `ev.data` in `Events.On(name, ev => ev.data)` is inferred automatically
 
-送出事件：`application.Get().Event.Emit(name, payload)`。
+Emit an event: `application.Get().Event.Emit(name, payload)`.
 
-## 目前的 Service
+## Current services
 
-### HelloService（M0 示範）
+### HelloService (M0 demo)
 
-驗證 Go ↔ React 的三種串接方式，M1 之後會移除。
+Exercises the three ways Go and React talk to each other; to be removed after M1.
 
-| 方法 | 說明 |
+| Method | Description |
 |---|---|
-| `Hello(name)` | 回傳問候語；`name` 空白時回傳 `ErrEmptyName`，前端 Promise 會被 reject |
-| `Count(ctx, total, intervalMs)` | 每 `intervalMs` 毫秒數一次並送出 `count:tick` 事件（payload：`CountTick{current, total}`）；前端取消時立即回傳 `ctx.Err()` |
+| `Hello(name)` | Returns a greeting; a blank `name` returns `ErrEmptyName` and rejects the frontend Promise |
+| `Count(ctx, total, intervalMs)` | Counts every `intervalMs` ms and emits a `count:tick` event (payload: `CountTick{current, total}`); returns `ctx.Err()` immediately when the frontend cancels |
 
-`emit` 欄位是為了測試可以替換掉 Wails 的事件系統，見 `hello_service_test.go`。
+The `emit` field lets tests replace the Wails event system; see `hello_service_test.go`.
