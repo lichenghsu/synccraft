@@ -5,9 +5,9 @@
 Wraps a Promise-returning function and tracks the call state.
 
 ```ts
-const hello = useAsync(api.hello);
-await hello.run("Miles");
-hello.state  // { status: "idle" | "loading" | "success" | "error", data?, error? }
+const load = useAsync(api.listSaved);
+await load.run();
+load.state  // { status: "idle" | "loading" | "success" | "error", data?, error? }
 ```
 
 `state` is a discriminated union (`AsyncState<T>`, defined in `src/types.ts`): TS only lets you read `data` inside the `status === "success"` branch. Errors are not thrown; they go into `state.error`.
@@ -17,10 +17,10 @@ hello.state  // { status: "idle" | "loading" | "success" | "error", data?, error
 A cancellable long-running call; `fn` must return a `CancellablePromise`.
 
 ```ts
-const count = useCancellable(api.count);
-await count.run(50, 80);   // calling run again cancels the previous call first
-count.cancel();            // cancels the Go-side context.Context
-count.running              // whether a call is in progress
+const test = useCancellable(api.testConnection);
+await test.run(draft);     // calling run again cancels the previous call first
+test.cancel();             // cancels the Go-side context.Context
+test.running               // whether a call is in progress
 ```
 
 - When cancelled, `run` rejects; check with `isCancel(e)`.
@@ -31,9 +31,11 @@ count.running              // whether a call is in progress
 Subscribes to an event emitted from Go.
 
 ```ts
-import { CountTick } from "@events";
-useWailsEvent(CountTick, (tick) => setTick(tick));   // tick's type is inferred
+import { SyncProgress } from "@events";             // hypothetical, once Go registers it
+useWailsEvent(SyncProgress, (p) => setProgress(p)); // p's type is inferred
 ```
+
+No custom events are registered right now (the M0 `count:tick` demo was removed); the hook is kept for M4's sync progress.
 
 - Use the event name constants exported from `@events`; the payload type comes from the type registered with `application.RegisterEvent[T]` in Go.
 - `handler` is kept in a ref: passing a new function on every render does not resubscribe.

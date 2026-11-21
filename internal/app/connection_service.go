@@ -18,20 +18,53 @@ func NewConnectionService(files *FileService, st *store.Store) *ConnectionServic
 	return &ConnectionService{files: files, store: st, pool: conn.NewPool()}
 }
 
-// TestConnection opens cfg, pings it and closes it without caching.
-func (s *ConnectionService) TestConnection(ctx context.Context, cfg conn.ConnectionConfig) error {
-	if err := s.files.checkPaths(&cfg); err != nil {
+// ConnectionDraft is what the connection form holds.
+type ConnectionDraft struct {
+	ID            string                `json:"id"` // saved connection being edited; "" if new
+	Config        conn.ConnectionConfig `json:"config"`
+	UpdateSecrets bool                  `json:"updateSecrets"` // false: use the stored passwords
+}
+
+// TestConnection opens the draft's config, pings it and closes it without caching.
+func (s *ConnectionService) TestConnection(ctx context.Context, d ConnectionDraft) error {
+	cfg, err := s.resolve(d)
+	if err != nil {
 		return err
 	}
 	return conn.Ping(ctx, cfg)
 }
 
-// ListDatabases returns the non-system databases on the server in cfg.
-func (s *ConnectionService) ListDatabases(ctx context.Context, cfg conn.ConnectionConfig) ([]string, error) {
-	if err := s.files.checkPaths(&cfg); err != nil {
+// ListDatabases returns the non-system databases on the draft's server.
+func (s *ConnectionService) ListDatabases(ctx context.Context, d ConnectionDraft) ([]string, error) {
+	cfg, err := s.resolve(d)
+	if err != nil {
 		return nil, err
 	}
 	return s.listDatabases(ctx, cfg)
+}
+
+// resolve checks the draft's paths and, when editing a saved connection
+// without touching its passwords, fills them in from the keychain.
+func (s *ConnectionService) resolve(d ConnectionDraft) (conn.ConnectionConfig, error) {
+	cfg := d.Config
+	if err := s.files.checkPaths(&cfg); err != nil {
+		return conn.ConnectionConfig{}, err
+	}
+	if d.ID == "" || d.UpdateSecrets {
+		return cfg, nil
+	}
+
+	stored, err := s.store.Get(d.ID)
+	if err != nil {
+		return conn.ConnectionConfig{}, err
+	}
+	cfg.Password = stored.Password
+	if cfg.SSH != nil && stored.SSH != nil {
+		ssh := *cfg.SSH
+		ssh.Password, ssh.Passphrase = stored.SSH.Password, stored.SSH.Passphrase
+		cfg.SSH = &ssh
+	}
+	return cfg, nil
 }
 
 // ListSaved returns saved connections without passwords.

@@ -3,11 +3,9 @@
 
 import * as ConnectionService from "./connectionservice.js";
 import * as FileService from "./fileservice.js";
-import * as HelloService from "./helloservice.js";
 export {
     ConnectionService,
-    FileService,
-    HelloService
+    FileService
 };
 
 export {
@@ -15,5 +13,5 @@ export {
 } from "./models.js";
 
 export type {
-    CountTick
+    ConnectionDraft
 } from "./models.js";

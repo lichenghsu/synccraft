@@ -28,17 +28,6 @@ Emit an event: `application.Get().Event.Emit(name, payload)`.
 
 ## Current services
 
-### HelloService (M0 demo)
-
-Exercises the three ways Go and React talk to each other; to be removed after M1.
-
-| Method | Description |
-|---|---|
-| `Hello(name)` | Returns a greeting; a blank `name` returns `ErrEmptyName` and rejects the frontend Promise |
-| `Count(ctx, total, intervalMs)` | Counts every `intervalMs` ms and emits a `count:tick` event (payload: `CountTick{current, total}`); returns `ctx.Err()` immediately when the frontend cancels |
-
-The `emit` field lets tests replace the Wails event system; see `hello_service_test.go`.
-
 ### FileService
 
 Opens native file dialogs in Go and keeps an allowlist of the paths the user chose. This prevents path attacks: even if the WebView were compromised (e.g. XSS from rendered table data), it could not make the backend open or create arbitrary files.
@@ -66,8 +55,8 @@ Unexported helpers used by other services in this package:
 
 | Method | Description |
 |---|---|
-| `TestConnection(ctx, cfg)` | `checkPaths`, then open + ping + close (`conn.Ping`); nothing is cached |
-| `ListDatabases(ctx, cfg)` | `checkPaths`, then a pooled connection and `conn.ListDatabases` |
+| `TestConnection(ctx, draft)` | `checkPaths`, then open + ping + close (`conn.Ping`); nothing is cached |
+| `ListDatabases(ctx, draft)` | `checkPaths`, then a pooled connection and `conn.ListDatabases` |
 | `ListSaved()` | Saved connections without passwords; their file paths are added to the allowlist |
 | `SaveConnection(c, updateSecrets)` | `checkPaths` + `Validate`, then `store.Save`; closes the pooled connection of the previous settings |
 | `DeleteConnection(id)` | Removes the connection, its keychain entries and its pooled connection |
@@ -77,3 +66,5 @@ Unexported helpers used by other services in this package:
 Methods taking `ctx` can be cancelled from the frontend. List methods never return `null` from Go, but the generated types still say `T[] | null`; wrap them with `arr()`.
 
 Saved connections are addressed by id so passwords never travel back to the frontend.
+
+`ConnectionDraft{id, config, updateSecrets}` is the connection form's content. When `id` is set and `updateSecrets` is false (the user edited a saved connection but not its password), the stored passwords are filled in from the keychain before connecting, so "Test connection" works on an edited saved connection.

@@ -1,23 +1,22 @@
 import { CancelError } from "@wailsio/runtime";
-import { ConnectionService, FileKind, FileService, HelloService } from "@bindings/internal/app";
-import type { ConnectionConfig } from "@bindings/internal/conn";
+import { ConnectionService, FileKind, FileService } from "@bindings/internal/app";
+import type { ConnectionDraft } from "@bindings/internal/app";
+import { DBType } from "@bindings/internal/conn";
+import type { ConnectionConfig, TLSFiles } from "@bindings/internal/conn";
 import type { Connection } from "@bindings/internal/store";
 
-export { FileKind };
-export type { Connection, ConnectionConfig };
+export { DBType, FileKind };
+export type { Connection, ConnectionConfig, ConnectionDraft, TLSFiles };
 
 export const arr = <T,>(x: T[] | null | undefined): T[] => x ?? [];
 
 export const api = {
-  hello: (name: string) => HelloService.Hello(name),
-  // Return the CancellablePromise as-is; wrapping in async would drop .cancel().
-  count: (total: number, intervalMs = 100) => HelloService.Count(total, intervalMs),
   // Resolves to "" when the user cancels. Never build file paths in the frontend.
   pickFile: (kind: FileKind) => FileService.PickFile(kind),
 
-  // Unsaved config typed into the form (includes the password).
-  testConnection: (cfg: ConnectionConfig) => ConnectionService.TestConnection(cfg),
-  listDatabases: async (cfg: ConnectionConfig) => arr(await ConnectionService.ListDatabases(cfg)),
+  // Return the CancellablePromise as-is so callers can .cancel() a slow server.
+  testConnection: (d: ConnectionDraft) => ConnectionService.TestConnection(d),
+  listDatabases: async (d: ConnectionDraft) => arr(await ConnectionService.ListDatabases(d)),
 
   // Saved connections never come back with passwords; refer to them by id.
   listSaved: async () => arr(await ConnectionService.ListSaved()),
