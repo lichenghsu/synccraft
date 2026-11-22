@@ -19,12 +19,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/httpstream"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
+	"k8s.io/streaming/pkg/httpstream"
 )
 
 var (
@@ -147,13 +147,13 @@ func (f *k8sForwarder) defaultDialer(u *url.URL) (httpstream.Dialer, error) {
 	if err != nil {
 		return nil, err
 	}
-	spdyDialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, u)
+	spdyDialer := spdy.NewDialerForStreaming(upgrader, &http.Client{Transport: transport}, http.MethodPost, u)
 	// Newer API servers prefer WebSockets; fall back to SPDY like kubectl does.
-	ws, err := portforward.NewSPDYOverWebsocketDialer(u, f.config)
+	ws, err := portforward.NewSPDYOverWebsocketDialerForStreaming(u, f.config)
 	if err != nil {
 		return spdyDialer, nil
 	}
-	return portforward.NewFallbackDialer(ws, spdyDialer, func(err error) bool {
+	return portforward.NewFallbackDialerForStreaming(ws, spdyDialer, func(err error) bool {
 		return httpstream.IsUpgradeFailure(err) || httpstream.IsHTTPSProxyError(err)
 	}), nil
 }
