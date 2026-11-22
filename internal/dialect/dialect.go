@@ -27,7 +27,7 @@ type Column struct {
 	// Default is the raw default expression, e.g. "'guest'" or
 	// "CURRENT_TIMESTAMP". Nil means no default.
 	Default *string `json:"default"`
-	// Position is 1-based, in table definition order.
+	// Position is 1-based and contiguous, in table definition order.
 	Position int `json:"position"`
 }
 
@@ -61,4 +61,21 @@ type Dialect interface {
 	// Indexes returns the secondary indexes of t ordered by name. Never nil.
 	// Returns an error wrapping ErrTableNotFound if t does not exist.
 	Indexes(ctx context.Context, db *sql.DB, t Table) ([]Index, error)
+}
+
+// appendIndexColumn adds column to the last index if it is named name,
+// otherwise starts a new index. Rows must arrive ordered by index name, then
+// key position.
+func appendIndexColumn(indexes []Index, name string, unique, constraint bool, column string) []Index {
+	if n := len(indexes); n == 0 || indexes[n-1].Name != name {
+		indexes = append(indexes, Index{
+			Name:       name,
+			Columns:    []string{},
+			Unique:     unique,
+			Constraint: constraint,
+		})
+	}
+	last := &indexes[len(indexes)-1]
+	last.Columns = append(last.Columns, column)
+	return indexes
 }
