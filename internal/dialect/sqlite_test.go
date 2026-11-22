@@ -169,3 +169,111 @@ func formatColumns(cols []Column) string {
 	}
 	return s
 }
+
+func TestSQLitePrimaryKey(t *testing.T) {
+	tests := []struct {
+		name string
+		ddl  string
+		want []string
+	}{
+		{
+			name: "single column",
+			ddl:  `CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT)`,
+			want: []string{"id"},
+		},
+		{
+			name: "composite key in key order, not column order",
+			ddl:  `CREATE TABLE t (a TEXT, b TEXT, PRIMARY KEY (b, a))`,
+			want: []string{"b", "a"},
+		},
+		{
+			name: "no primary key returns empty slice, not nil",
+			ddl:  `CREATE TABLE t (v TEXT)`,
+			want: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := openSQLite(t, tt.ddl)
+
+			got, err := SQLite{}.PrimaryKey(context.Background(), db, Table{Name: "t"})
+			if err != nil {
+				t.Fatalf("PrimaryKey: %v", err)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("PrimaryKey = %#v, want %#v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSQLiteIndexes(t *testing.T) {
+	tests := []struct {
+		name string
+		ddl  []string
+		want []Index
+	}{
+		{
+			name: "no indexes returns empty slice, not nil",
+			ddl:  []string{`CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT)`},
+			want: []Index{},
+		},
+		{
+			name: "primary key excluded; unique constraint, unique, multi-column and expression indexes sorted by name",
+			ddl: []string{
+				`CREATE TABLE t (id TEXT PRIMARY KEY, email TEXT UNIQUE, first TEXT, last TEXT, name TEXT)`,
+				`CREATE INDEX t_last_first ON t (last, first)`,
+				`CREATE UNIQUE INDEX t_name ON t (name)`,
+				`CREATE INDEX t_lower_name ON t (lower(name))`,
+			},
+			want: []Index{
+				{Name: "sqlite_autoindex_t_2", Columns: []string{"email"}, Unique: true, Constraint: true},
+				{Name: "t_last_first", Columns: []string{"last", "first"}},
+				{Name: "t_lower_name", Columns: []string{""}},
+				{Name: "t_name", Columns: []string{"name"}, Unique: true},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := openSQLite(t, tt.ddl...)
+
+			got, err := SQLite{}.Indexes(context.Background(), db, Table{Name: "t"})
+			if err != nil {
+				t.Fatalf("Indexes: %v", err)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Indexes =\n%+v\nwant\n%+v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSQLiteTableNotFound(t *testing.T) {
+	db := openSQLite(t)
+	ctx := context.Background()
+	missing := Table{Name: "missing"}
+
+	if _, err := (SQLite{}).PrimaryKey(ctx, db, missing); !errors.Is(err, ErrTableNotFound) {
+		t.Errorf("PrimaryKey: err = %v, want ErrTableNotFound", err)
+	}
+	if _, err := (SQLite{}).Indexes(ctx, db, missing); !errors.Is(err, ErrTableNotFound) {
+		t.Errorf("Indexes: err = %v, want ErrTableNotFound", err)
+	}
+}
+
+func TestSQLiteKeysCanceled(t *testing.T) {
+	db := openSQLite(t, `CREATE TABLE t (id INTEGER PRIMARY KEY)`)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	tbl := Table{Name: "t"}
+
+	if _, err := (SQLite{}).PrimaryKey(ctx, db, tbl); !errors.Is(err, context.Canceled) {
+		t.Errorf("PrimaryKey: err = %v, want context.Canceled", err)
+	}
+	if _, err := (SQLite{}).Indexes(ctx, db, tbl); !errors.Is(err, context.Canceled) {
+		t.Errorf("Indexes: err = %v, want context.Canceled", err)
+	}
+}

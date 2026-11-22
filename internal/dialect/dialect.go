@@ -31,6 +31,18 @@ type Column struct {
 	Position int `json:"position"`
 }
 
+// Index is a secondary index. The primary key is reported by PrimaryKey, not
+// as an Index.
+type Index struct {
+	Name string `json:"name"`
+	// Columns are in key order. An expression key part is an empty string.
+	Columns []string `json:"columns"`
+	Unique  bool     `json:"unique"`
+	// Constraint is true when the index backs a UNIQUE constraint rather than
+	// a CREATE INDEX statement.
+	Constraint bool `json:"constraint"`
+}
+
 // Dialect reads metadata from one database engine.
 type Dialect interface {
 	// ListTables returns the user tables in the current database, ordered by
@@ -40,4 +52,13 @@ type Dialect interface {
 	// Columns returns the columns of t ordered by Position. Returns an error
 	// wrapping ErrTableNotFound if t does not exist.
 	Columns(ctx context.Context, db *sql.DB, t Table) ([]Column, error)
+
+	// PrimaryKey returns the primary key column names in key order, or an
+	// empty slice if t has none. Returns an error wrapping ErrTableNotFound
+	// if t does not exist.
+	PrimaryKey(ctx context.Context, db *sql.DB, t Table) ([]string, error)
+
+	// Indexes returns the secondary indexes of t ordered by name. Never nil.
+	// Returns an error wrapping ErrTableNotFound if t does not exist.
+	Indexes(ctx context.Context, db *sql.DB, t Table) ([]Index, error)
 }
