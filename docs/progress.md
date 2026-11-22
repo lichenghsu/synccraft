@@ -3,7 +3,7 @@
 | Milestone | Scope | Status |
 |---|---|---|
 | M0 | Project scaffold: Wails v3 + React/TS, example Service, hooks, test databases, Renovate, CI | ✅ Done |
-| M1 | Connection management: connection pool, four drivers, structured DSNs, passwords in the OS keychain, SSH tunnels, Kubernetes | 🚧 In progress |
+| M1 | Connection management: connection pool, four drivers, structured DSNs, passwords in the OS keychain, SSH tunnels, Kubernetes | ✅ Done |
 | M2 | Introspection and table browser: Dialect interface, metadata queries for all four databases | ⏳ Not started |
 | M3 | Schema comparison: diff algorithm, DDL in the target dialect, transactional execution | ⏳ Not started |
 | M4 | Data sync: parameterized DML, value normalization, progress events and cancellation, streaming diff for large tables | ⏳ Not started |
@@ -34,4 +34,5 @@
 - [x] Store: `os.UserConfigDir` + OS keychain + atomic writes; saved-connection APIs in `ConnectionService`
 - [x] React: connections page (saved list, `ConnectionForm`, test / load databases / save / delete), file fields via native dialogs only; `HelloService` removed
 - [x] Manual check in the real window: GTK4 file dialogs, keychain, saved connections across restarts
+- [x] Manual check of Kubernetes / CloudNativePG connections in the real window (kind cluster via `dev/kind/setup.sh`)
 - **Acceptance**: all four databases connect and list their databases; passwords never appear in the JSON file or DevTools
