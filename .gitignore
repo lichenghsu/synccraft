@@ -56,3 +56,8 @@ mise.local.toml
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Editors: share project settings only
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
