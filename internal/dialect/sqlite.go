@@ -136,17 +136,7 @@ func (SQLite) Indexes(ctx context.Context, db *sql.DB, t Table) ([]Index, error)
 		if err := rows.Scan(&name, &unique, &origin, &column); err != nil {
 			return nil, err
 		}
-		// Rows are ordered by index name, so a new name starts a new index.
-		if n := len(indexes); n == 0 || indexes[n-1].Name != name {
-			indexes = append(indexes, Index{
-				Name:       name,
-				Columns:    []string{},
-				Unique:     unique,
-				Constraint: origin == "u",
-			})
-		}
-		last := &indexes[len(indexes)-1]
-		last.Columns = append(last.Columns, column.String)
+		indexes = appendIndexColumn(indexes, name, unique, origin == "u", column.String)
 	}
 	return indexes, rows.Err()
 }
