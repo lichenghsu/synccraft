@@ -49,7 +49,8 @@ func (PostgreSQL) ListTables(ctx context.Context, db *sql.DB) ([]Table, error) {
 const pgColumnsSQL = `SELECT a.attname,
 		format_type(a.atttypid, a.atttypmod),
 		NOT a.attnotnull,
-		CASE WHEN a.attgenerated = '' THEN pg_get_expr(d.adbin, d.adrelid) END
+		CASE WHEN a.attgenerated = '' THEN pg_get_expr(d.adbin, d.adrelid) END,
+		a.attidentity <> ''
 	FROM pg_attribute a
 	LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
 	WHERE a.attrelid = ` + pgRegclass + `
@@ -75,7 +76,7 @@ func (PostgreSQL) Columns(ctx context.Context, db *sql.DB, t Table) ([]Column, e
 			c    Column
 			dflt sql.NullString
 		)
-		if err := rows.Scan(&c.Name, &c.Type, &c.Nullable, &dflt); err != nil {
+		if err := rows.Scan(&c.Name, &c.Type, &c.Nullable, &dflt, &c.AutoIncrement); err != nil {
 			return nil, err
 		}
 		// attnum keeps gaps from dropped columns; renumber so positions

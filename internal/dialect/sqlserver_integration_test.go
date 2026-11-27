@@ -112,7 +112,7 @@ func TestMSSQLColumns(t *testing.T) {
 		t.Fatalf("Columns: %v", err)
 	}
 	want := []Column{
-		{Name: "id", Type: "int", Nullable: false, Position: 1},
+		{Name: "id", Type: "int", Nullable: false, Position: 1, AutoIncrement: true},
 		{Name: "name", Type: "nvarchar(20)", Nullable: false, Default: ptr("'guest'"), Position: 2},
 		{Name: "code", Type: "varchar(max)", Nullable: true, Position: 3},
 		{Name: "qty", Type: "int", Nullable: true, Default: ptr("0"), Position: 4},

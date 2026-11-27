@@ -106,7 +106,7 @@ func TestMySQLColumns(t *testing.T) {
 		t.Fatalf("Columns: %v", err)
 	}
 	want := []Column{
-		{Name: "id", Type: "int unsigned", Nullable: false, Position: 1},
+		{Name: "id", Type: "int unsigned", Nullable: false, Position: 1, AutoIncrement: true},
 		{Name: "name", Type: "varchar(20)", Nullable: false, Default: ptr("'guest'"), Position: 2},
 		{Name: "qty", Type: "int", Nullable: true, Default: ptr("'0'"), Position: 3},
 		{Name: "price", Type: "decimal(10,2)", Nullable: true, Position: 4},

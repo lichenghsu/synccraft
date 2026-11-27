@@ -23,6 +23,13 @@ export interface Column {
      * Position is 1-based and contiguous, in table definition order.
      */
     "position": number;
+
+    /**
+     * AutoIncrement marks a column the engine numbers itself: MySQL
+     * AUTO_INCREMENT, PostgreSQL identity, SQL Server IDENTITY. PostgreSQL
+     * serial shows as a nextval default instead; SQLite never sets it.
+     */
+    "autoIncrement": boolean;
 }
 
 /**

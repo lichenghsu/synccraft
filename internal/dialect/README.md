@@ -23,6 +23,7 @@ Database metadata (introspection): tables, columns, primary keys, indexes, one i
 - The primary key comes from `PrimaryKey`; `Indexes` never includes the index that backs it.
 - `Column.Position` is renumbered 1..n (PostgreSQL `attnum` keeps gaps from dropped columns).
 - `Column.Default` is a default *expression* (string literals quoted), or nil. Generated / computed columns and identity columns report no default.
+- `Column.AutoIncrement`: MySQL `AUTO_INCREMENT`, PostgreSQL identity (`attidentity`), SQL Server `IDENTITY`. PostgreSQL `serial` is a `nextval(...)` default instead. SQLite never sets it (`INTEGER PRIMARY KEY` numbers rows anyway; `AUTOINCREMENT` is not detected).
 - An expression key part in an index is reported as `""`.
 
 ## Schemas

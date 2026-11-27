@@ -71,6 +71,7 @@ func (MySQL) Columns(ctx context.Context, db *sql.DB, t Table) ([]Column, error)
 			return nil, err
 		}
 		c.Default = mysqlDefault(dflt, extra, mariaDB)
+		c.AutoIncrement = strings.Contains(strings.ToLower(extra), "auto_increment")
 		c.Position = len(cols) + 1
 		cols = append(cols, c)
 	}
