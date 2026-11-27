@@ -3,6 +3,7 @@ package schema
 import (
 	"cmp"
 	"slices"
+	"strconv"
 
 	"github.com/lichenghsu/synccraft/internal/dialect"
 )
@@ -24,6 +25,9 @@ const (
 // Change is one step that moves the target towards the source. Only the
 // fields relevant to Kind are set.
 type Change struct {
+	// ID identifies the change within one comparison: kind, table and the
+	// column or index name.
+	ID    string        `json:"id"`
 	Kind  Kind          `json:"kind"`
 	Table dialect.Table `json:"table"`
 
@@ -101,7 +105,22 @@ func Diff(src, dst []Table) []Change {
 	out := make([]Change, 0, len(added)+len(altered)+len(dropped))
 	out = append(out, added...)
 	out = append(out, altered...)
-	return append(out, dropped...)
+	out = append(out, dropped...)
+	for i := range out {
+		out[i].ID = changeID(out[i])
+	}
+	return out
+}
+
+func changeID(c Change) string {
+	id := string(c.Kind) + " " + strconv.Quote(c.Table.Schema) + "." + strconv.Quote(c.Table.Name)
+	switch {
+	case c.Column != nil:
+		id += " " + strconv.Quote(c.Column.Name)
+	case c.Index != nil:
+		id += " " + strconv.Quote(c.Index.Name)
+	}
+	return id
 }
 
 // diffTable compares two tables with the same key. Changes come out grouped

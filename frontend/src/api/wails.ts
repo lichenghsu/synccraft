@@ -1,11 +1,17 @@
 import { CancelError } from "@wailsio/runtime";
 import {
+  CompareService,
   ConnectionService,
   FileKind,
   FileService,
   SchemaService,
 } from "@bindings/internal/app";
-import type { ConnectionDraft, TableInfo } from "@bindings/internal/app";
+import type {
+  Comparison,
+  ConnectionDraft,
+  Side,
+  TableInfo,
+} from "@bindings/internal/app";
 import { CNPGUser, DBType, SSHAuthMethod } from "@bindings/internal/conn";
 import type {
   ConnectionConfig,
@@ -17,10 +23,14 @@ import type {
   TLSFiles,
 } from "@bindings/internal/conn";
 import type { Column, Index, RowPage, Table } from "@bindings/internal/dialect";
+import { Kind } from "@bindings/internal/schema";
+import type { Change, Step } from "@bindings/internal/schema";
 import type { Connection } from "@bindings/internal/store";
 
-export { CNPGUser, DBType, FileKind, SSHAuthMethod };
+export { CNPGUser, DBType, FileKind, Kind, SSHAuthMethod };
 export type {
+  Change,
+  Comparison,
   Connection,
   ConnectionConfig,
   Column,
@@ -31,7 +41,9 @@ export type {
   K8sTargets,
   RowPage,
   ServerInfo,
+  Side,
   SSHTunnel,
+  Step,
   Table,
   TableInfo,
   TLSFiles,
@@ -86,6 +98,17 @@ export const api = {
   // May scan the whole table.
   countRows: (id: string, database: string, t: Table) =>
     SchemaService.CountRows(id, database, t),
+
+  // Schema compare. Compare replaces the previous comparison; its token is
+  // what Preview and Apply act on. Changes are referred to by id, never SQL.
+  compare: (source: Side, target: Side) =>
+    CompareService.Compare(source, target),
+  // SQL for the selected changes, in execution order.
+  previewChanges: (token: string, ids: string[]) =>
+    CompareService.Preview(token, ids).then(arr),
+  // Refuses if either schema changed since Compare; the token is spent either way.
+  applyChanges: (token: string, ids: string[]) =>
+    CompareService.Apply(token, ids),
 };
 
 export const isCancel = (e: unknown) => e instanceof CancelError;

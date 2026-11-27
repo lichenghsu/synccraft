@@ -7,6 +7,24 @@ import * as conn$0 from "../conn/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as dialect$0 from "../dialect/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as schema$0 from "../schema/models.js";
+
+/**
+ * Comparison is the result of Compare. Steps holds every change with the SQL
+ * it would run if all changes were applied.
+ */
+export interface Comparison {
+    "token": string;
+    "steps": schema$0.Step[] | null;
+
+    /**
+     * TransactionalDDL is false for MySQL / MariaDB, where each DDL statement
+     * commits on its own and a failed Apply leaves earlier statements applied.
+     */
+    "transactionalDdl": boolean;
+}
 
 /**
  * ConnectionDraft is what the connection form holds.
@@ -42,6 +60,15 @@ export enum FileKind {
     FileKnownHosts = "knownHosts",
     FileKubeconfig = "kubeconfig",
 };
+
+/**
+ * Side is one end of a comparison: a saved connection and a database on it
+ * ("" = the connection's default; ignored for SQLite).
+ */
+export interface Side {
+    "connectionId": string;
+    "database": string;
+}
 
 /**
  * TableInfo is the structure of one table.

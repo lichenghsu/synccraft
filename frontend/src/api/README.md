@@ -10,6 +10,7 @@ Wrappers around the Go bindings. **Components import only from here, never from 
 | `DBType`, `FileKind` | Re-exported enums |
 | `Connection`, `ConnectionConfig`, `ConnectionDraft`, `TLSFiles` | Re-exported types for the connection APIs |
 | `Table`, `TableInfo`, `Column`, `Index`, `RowPage` | Re-exported types for the browse APIs |
+| `Side`, `Comparison`, `Step`, `Change`, `Kind` | Re-exported types for the compare APIs |
 | `arr(x)` | Go nil slices serialize to `null`; normalizes them to `[]` |
 | `isCancel(e)` | Whether the error is a user-initiated cancel (`CancelError`) |
 | `errMsg(e)` | Turns any error into a displayable string; errors returned from Go become an `Error` with `message` |

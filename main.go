@@ -24,6 +24,7 @@ func main() {
 	files := app.NewFileService()
 	connections := app.NewConnectionService(files, st, pool)
 	schema := app.NewSchemaService(st, pool)
+	compare := app.NewCompareService(st, pool)
 
 	a := application.New(application.Options{
 		Name:        "SyncCraft",
@@ -32,6 +33,7 @@ func main() {
 			application.NewService(files),
 			application.NewService(connections),
 			application.NewService(schema),
+			application.NewService(compare),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

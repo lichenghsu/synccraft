@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { BrowsePage } from "./features/browse/BrowsePage";
+import { ComparePage } from "./features/compare/ComparePage";
 import { ConnectionsPage } from "./features/connections/ConnectionsPage";
 
-type Page = "connections" | "browse";
+type Page = "connections" | "browse" | "compare";
 
 export default function App() {
   const [page, setPage] = useState<Page>("connections");
@@ -30,9 +31,18 @@ export default function App() {
           >
             Browse
           </button>
+          <button
+            type="button"
+            className={page === "compare" ? "on" : ""}
+            onClick={() => setPage("compare")}
+          >
+            Compare
+          </button>
         </nav>
       </header>
-      {page === "connections" ? <ConnectionsPage /> : <BrowsePage />}
+      {page === "connections" && <ConnectionsPage />}
+      {page === "browse" && <BrowsePage />}
+      {page === "compare" && <ComparePage />}
     </main>
   );
 }

@@ -233,3 +233,24 @@ func TestDiffNeverNil(t *testing.T) {
 		t.Error("Diff(nil, nil) = nil, want empty slice")
 	}
 }
+
+func TestDiffIDsUnique(t *testing.T) {
+	src := []Table{{
+		Table: dialect.Table{Name: "t"}, Columns: []dialect.Column{id, col(2, "a", "int", true)},
+		Indexes: []dialect.Index{{Name: "a", Columns: []string{"a"}, Unique: true}},
+	}}
+	dst := []Table{{
+		Table: dialect.Table{Name: "t"}, Columns: []dialect.Column{id},
+		Indexes: []dialect.Index{{Name: "a", Columns: []string{"id"}}},
+	}}
+	seen := map[string]bool{}
+	for _, c := range Diff(src, dst) {
+		if c.ID == "" || seen[c.ID] {
+			t.Errorf("duplicate or empty ID %q", c.ID)
+		}
+		seen[c.ID] = true
+	}
+	if len(seen) != 3 {
+		t.Errorf("got %d changes, want 3 (add column, drop index, add index)", len(seen))
+	}
+}

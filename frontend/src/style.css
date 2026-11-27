@@ -133,3 +133,29 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .grid td.num { text-align: right; }
 .grid td.null { color: var(--muted); font-style: italic; }
 .grid tbody tr:hover { background: var(--bg); }
+
+/* Compare */
+.shell:has(.compare-page) { max-width: 1400px; }
+.compare-page { display: flex; flex-direction: column; gap: 16px; }
+.compare-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: stretch; }
+.compare-mid { display: flex; align-items: center; }
+.side { display: flex; flex-direction: column; gap: 12px; margin: 0; min-width: 0; }
+.side legend { padding: 0 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
+.compare-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.changes, .sql-preview { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.change-group h3 { margin: 0 0 4px; font-size: 14px; color: var(--muted); }
+.change-group ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.change-group li { padding: 4px 8px; border-radius: 6px; border-left: 3px solid transparent; }
+.change-group li.destructive { border-left-color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, transparent); }
+.change-group .check { align-items: flex-start; overflow-wrap: anywhere; }
+.change-group .check input { margin-top: 4px; }
+.change-group li .hint { padding-left: 24px; }
+.badge.danger { border-color: var(--danger); color: var(--danger); white-space: nowrap; }
+.sql-preview pre { margin: 0; padding: 12px; max-height: calc(100vh - 420px); overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.warn { margin: 0; color: #fbbf24; font-size: 13px; }
+.confirm { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--danger); border-radius: 8px; }
+.confirm p { margin: 0; }
+.danger-text { color: var(--danger); }
+@media (max-width: 900px) {
+  .compare-bar, .compare-body { grid-template-columns: minmax(0, 1fr); }
+}
