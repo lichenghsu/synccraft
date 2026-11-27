@@ -50,9 +50,9 @@
 ## M3 checklist
 
 - [x] `internal/schema`: `Load` (full structure of every table), `Diff` (pure; tables / columns / primary key / indexes; execution-safe order; destructive flag), normalization against false differences
-- [ ] DDL per target dialect: create / drop table, add / drop / alter column, primary key, create / drop index (SQLite table rebuild)
-- [ ] Transactional execution; warn that MySQL DDL commits implicitly
+- [x] DDL per target dialect (same engine only): create / drop table, add / drop / alter column, primary key, create / drop index (SQLite table rebuild); `Column.AutoIncrement` in introspection
+- [x] Transactional execution (`Apply`); `TransactionalDDL` false for MySQL, UI warning still to do
 - [ ] `CompareService` (Wails): compare two saved connections / databases, apply selected changes
 - [ ] React: Compare page (source / target pickers, change list with destructive changes highlighted, SQL preview, apply)
-- [ ] Integration tests per engine: apply the diff, compare again, expect no changes
+- [x] Integration tests per engine: apply the diff, compare again, expect no changes
 - **Acceptance**: after applying all changes, comparing again shows no differences, on all four engines

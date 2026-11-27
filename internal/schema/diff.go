@@ -177,6 +177,7 @@ func diffTable(s, d *Table) []Change {
 func columnsEqual(a, b dialect.Column) bool {
 	return normalizeType(a.Type) == normalizeType(b.Type) &&
 		a.Nullable == b.Nullable &&
+		a.AutoIncrement == b.AutoIncrement &&
 		defaultsEqual(a.Default, b.Default)
 }
 
