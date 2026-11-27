@@ -175,3 +175,11 @@ func pgTableExists(ctx context.Context, db *sql.DB, t Table) error {
 	}
 	return nil
 }
+
+func (PostgreSQL) QuoteIdent(name string) string { return doubleQuote(name) }
+
+func (PostgreSQL) selectPage(cols, from string, orderBy []string, limit, offset int) string {
+	return limitOffset(cols, from, orderBy, limit, offset)
+}
+
+func (PostgreSQL) countExpr() string { return "COUNT(*)" }

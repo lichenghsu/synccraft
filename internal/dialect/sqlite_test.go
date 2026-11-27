@@ -252,15 +252,20 @@ func TestSQLiteIndexes(t *testing.T) {
 }
 
 func TestSQLiteTableNotFound(t *testing.T) {
-	db := openSQLite(t)
+	db := openSQLite(t, `CREATE TABLE t (id INTEGER PRIMARY KEY)`, `CREATE VIEW v AS SELECT id FROM t`)
 	ctx := context.Background()
-	missing := Table{Name: "missing"}
 
-	if _, err := (SQLite{}).PrimaryKey(ctx, db, missing); !errors.Is(err, ErrTableNotFound) {
-		t.Errorf("PrimaryKey: err = %v, want ErrTableNotFound", err)
-	}
-	if _, err := (SQLite{}).Indexes(ctx, db, missing); !errors.Is(err, ErrTableNotFound) {
-		t.Errorf("Indexes: err = %v, want ErrTableNotFound", err)
+	for _, name := range []string{"missing", "v"} { // a view is not a table
+		tbl := Table{Name: name}
+		if _, err := (SQLite{}).Columns(ctx, db, tbl); !errors.Is(err, ErrTableNotFound) {
+			t.Errorf("Columns(%s): err = %v, want ErrTableNotFound", name, err)
+		}
+		if _, err := (SQLite{}).PrimaryKey(ctx, db, tbl); !errors.Is(err, ErrTableNotFound) {
+			t.Errorf("PrimaryKey(%s): err = %v, want ErrTableNotFound", name, err)
+		}
+		if _, err := (SQLite{}).Indexes(ctx, db, tbl); !errors.Is(err, ErrTableNotFound) {
+			t.Errorf("Indexes(%s): err = %v, want ErrTableNotFound", name, err)
+		}
 	}
 }
 

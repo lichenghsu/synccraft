@@ -171,3 +171,13 @@ func mysqlTableExists(ctx context.Context, db *sql.DB, t Table) error {
 	}
 	return nil
 }
+
+func (MySQL) QuoteIdent(name string) string {
+	return "`" + strings.ReplaceAll(name, "`", "``") + "`"
+}
+
+func (MySQL) selectPage(cols, from string, orderBy []string, limit, offset int) string {
+	return limitOffset(cols, from, orderBy, limit, offset)
+}
+
+func (MySQL) countExpr() string { return "COUNT(*)" }

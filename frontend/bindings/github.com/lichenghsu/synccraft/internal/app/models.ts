@@ -4,6 +4,9 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as conn$0 from "../conn/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as dialect$0 from "../dialect/models.js";
 
 /**
  * ConnectionDraft is what the connection form holds.
@@ -39,3 +42,12 @@ export enum FileKind {
     FileKnownHosts = "knownHosts",
     FileKubeconfig = "kubeconfig",
 };
+
+/**
+ * TableInfo is the structure of one table.
+ */
+export interface TableInfo {
+    "columns": dialect$0.Column[] | null;
+    "primaryKey": string[] | null;
+    "indexes": dialect$0.Index[] | null;
+}

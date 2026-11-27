@@ -3,9 +3,11 @@
 
 import * as ConnectionService from "./connectionservice.js";
 import * as FileService from "./fileservice.js";
+import * as SchemaService from "./schemaservice.js";
 export {
     ConnectionService,
-    FileService
+    FileService,
+    SchemaService
 };
 
 export {
@@ -13,5 +15,6 @@ export {
 } from "./models.js";
 
 export type {
-    ConnectionDraft
+    ConnectionDraft,
+    TableInfo
 } from "./models.js";

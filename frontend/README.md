@@ -8,7 +8,7 @@ React 19 + TypeScript 7 + Vite 8. Driven by `wails3 dev` / `wails3 build`; you r
 frontend/
 ├── bindings/        # generated from Go, do not edit (commit it; CI checks it is in sync)
 │   ├── events/      #   event name constants
-│   └── github.com/lichenghsu/synccraft/internal/   # app/ services, conn/ and store/ types
+│   └── github.com/lichenghsu/synccraft/internal/   # app/ services, conn/, dialect/ and store/ types
 ├── src/
 │   ├── api/         # wrappers around the Go bindings (see api/README.md)
 │   ├── features/    # one folder per screen (see each README.md)

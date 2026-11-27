@@ -71,4 +71,19 @@ Methods taking `ctx` can be cancelled from the frontend. List methods never retu
 
 Saved connections are addressed by id so passwords never travel back to the frontend.
 
+`main.go` creates one `conn.Pool` and passes it to both `ConnectionService` and `SchemaService`, so browsing reuses the connection opened by "Load list". `ConnectionService.ServiceShutdown` closes it.
+
 `ConnectionDraft{id, config, updateSecrets}` is the connection form's content. When `id` is set, every secret not named in `updateSecrets` is filled in from the keychain before connecting, so "Test connection" works on an edited saved connection whose passwords the frontend never had.
+
+### SchemaService
+
+Table browser backend. Works on **saved connections only** (by id), so passwords stay in the keychain. `database` switches to another database on the same server; `""` uses the connection's default, and SQLite ignores it.
+
+| Method | Description |
+|---|---|
+| `ListTables(ctx, id, database)` | `dialect.Table` list (schema + name), sorted |
+| `DescribeTable(ctx, id, database, table)` | `TableInfo{columns, primaryKey, indexes}` |
+| `PreviewRows(ctx, id, database, table, offset, limit)` | One `dialect.RowPage`; `limit` is capped at `MaxPageSize` (500) |
+| `CountRows(ctx, id, database, table)` | Row count; may scan the whole table, so call it on request and keep it cancellable |
+
+Each database is a separate pooled connection (the pool key includes the database). Missing tables and views fail with `dialect.ErrTableNotFound`.

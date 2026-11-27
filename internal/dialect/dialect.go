@@ -61,6 +61,16 @@ type Dialect interface {
 	// Indexes returns the secondary indexes of t ordered by name. Never nil.
 	// Returns an error wrapping ErrTableNotFound if t does not exist.
 	Indexes(ctx context.Context, db *sql.DB, t Table) ([]Index, error)
+
+	// QuoteIdent quotes one identifier for use in SQL text.
+	QuoteIdent(name string) string
+
+	// selectPage builds a SELECT of cols from a quoted table name, sorted by
+	// orderBy (quoted, may be empty) and limited to one page.
+	selectPage(cols, from string, orderBy []string, limit, offset int) string
+
+	// countExpr is the row-count aggregate, e.g. COUNT(*).
+	countExpr() string
 }
 
 // appendIndexColumn adds column to the last index if it is named name,
