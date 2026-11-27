@@ -7,6 +7,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/lichenghsu/synccraft/internal/app"
+	"github.com/lichenghsu/synccraft/internal/conn"
 	"github.com/lichenghsu/synccraft/internal/store"
 )
 
@@ -18,8 +19,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	st := store.New(storePath, store.Keyring{Service: "synccraft"})
+	pool := conn.NewPool()
 	files := app.NewFileService()
-	connections := app.NewConnectionService(files, store.New(storePath, store.Keyring{Service: "synccraft"}))
+	connections := app.NewConnectionService(files, st, pool)
+	schema := app.NewSchemaService(st, pool)
 
 	a := application.New(application.Options{
 		Name:        "SyncCraft",
@@ -27,6 +31,7 @@ func main() {
 		Services: []application.Service{
 			application.NewService(files),
 			application.NewService(connections),
+			application.NewService(schema),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

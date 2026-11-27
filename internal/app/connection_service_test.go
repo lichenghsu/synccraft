@@ -19,7 +19,7 @@ func newTestConnectionService(t *testing.T) (*ConnectionService, string) {
 	path := filepath.Join(dir, "shop.db")
 	files, _ := newTestFileService(path, nil)
 	st := store.New(filepath.Join(dir, "config", "connections.json"), store.Keyring{Service: "synccraft-test"})
-	return NewConnectionService(files, st), path
+	return NewConnectionService(files, st, conn.NewPool()), path
 }
 
 func TestConnectionServiceRejectsUnpickedPath(t *testing.T) {
@@ -124,7 +124,7 @@ func TestListSavedAllowsStoredPaths(t *testing.T) {
 
 	// Simulate an app restart: same store, fresh allowlist.
 	files, _ := newTestFileService("", nil)
-	restarted := NewConnectionService(files, s.store)
+	restarted := NewConnectionService(files, s.store, conn.NewPool())
 	if _, err := restarted.TestConnection(context.Background(), ConnectionDraft{Config: cfg}); !errors.Is(err, ErrPathNotPicked) {
 		t.Fatalf("before ListSaved: %v, want ErrPathNotPicked", err)
 	}

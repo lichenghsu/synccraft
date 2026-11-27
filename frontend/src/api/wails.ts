@@ -3,8 +3,9 @@ import {
   ConnectionService,
   FileKind,
   FileService,
+  SchemaService,
 } from "@bindings/internal/app";
-import type { ConnectionDraft } from "@bindings/internal/app";
+import type { ConnectionDraft, TableInfo } from "@bindings/internal/app";
 import { CNPGUser, DBType, SSHAuthMethod } from "@bindings/internal/conn";
 import type {
   ConnectionConfig,
@@ -15,18 +16,24 @@ import type {
   SSHTunnel,
   TLSFiles,
 } from "@bindings/internal/conn";
+import type { Column, Index, RowPage, Table } from "@bindings/internal/dialect";
 import type { Connection } from "@bindings/internal/store";
 
 export { CNPGUser, DBType, FileKind, SSHAuthMethod };
 export type {
   Connection,
   ConnectionConfig,
+  Column,
   ConnectionDraft,
+  Index,
   K8sContexts,
   K8sForward,
   K8sTargets,
+  RowPage,
   ServerInfo,
   SSHTunnel,
+  Table,
+  TableInfo,
   TLSFiles,
 };
 
@@ -61,6 +68,24 @@ export const api = {
   testSaved: (id: string) => ConnectionService.TestSavedConnection(id),
   listSavedDatabases: async (id: string) =>
     arr(await ConnectionService.ListSavedDatabases(id)),
+
+  // Browsing a saved connection; database "" = the connection's default.
+  // These return the CancellablePromise so a newer selection can cancel them.
+  listTables: (id: string, database: string) =>
+    SchemaService.ListTables(id, database).then(arr),
+  describeTable: (id: string, database: string, t: Table) =>
+    SchemaService.DescribeTable(id, database, t),
+  // limit is capped at 500 by the backend.
+  previewRows: (
+    id: string,
+    database: string,
+    t: Table,
+    offset: number,
+    limit: number,
+  ) => SchemaService.PreviewRows(id, database, t, offset, limit),
+  // May scan the whole table.
+  countRows: (id: string, database: string, t: Table) =>
+    SchemaService.CountRows(id, database, t),
 };
 
 export const isCancel = (e: unknown) => e instanceof CancelError;

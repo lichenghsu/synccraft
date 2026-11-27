@@ -38,6 +38,11 @@ const sqliteColumnsSQL = `SELECT cid, name, type, "notnull", dflt_value
 	ORDER BY cid`
 
 func (SQLite) Columns(ctx context.Context, db *sql.DB, t Table) ([]Column, error) {
+	// pragma_table_info also answers for views, so check first.
+	if err := sqliteTableExists(ctx, db, t.Name); err != nil {
+		return nil, err
+	}
+
 	rows, err := db.QueryContext(ctx, sqliteColumnsSQL, t.Name)
 	if err != nil {
 		return nil, err
@@ -63,29 +68,25 @@ func (SQLite) Columns(ctx context.Context, db *sql.DB, t Table) ([]Column, error
 		}
 		cols = append(cols, c)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	if len(cols) == 0 {
-		return nil, fmt.Errorf("%w: %s", ErrTableNotFound, t.Name)
-	}
-	return cols, nil
+	return cols, rows.Err()
 }
 
 // pk is 0 for non-key columns, otherwise the 1-based position in the key.
 const sqlitePrimaryKeySQL = `SELECT pk, name FROM pragma_table_info(?) ORDER BY pk`
 
 func (SQLite) PrimaryKey(ctx context.Context, db *sql.DB, t Table) ([]string, error) {
+	if err := sqliteTableExists(ctx, db, t.Name); err != nil {
+		return nil, err
+	}
+
 	rows, err := db.QueryContext(ctx, sqlitePrimaryKeySQL, t.Name)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	found := false
 	key := []string{}
 	for rows.Next() {
-		found = true
 		var (
 			pk   int
 			name string
@@ -97,13 +98,7 @@ func (SQLite) PrimaryKey(ctx context.Context, db *sql.DB, t Table) ([]string, er
 			key = append(key, name)
 		}
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	if !found {
-		return nil, fmt.Errorf("%w: %s", ErrTableNotFound, t.Name)
-	}
-	return key, nil
+	return key, rows.Err()
 }
 
 // origin: 'c' = CREATE INDEX, 'u' = UNIQUE constraint, 'pk' = PRIMARY KEY.
@@ -115,7 +110,7 @@ const sqliteIndexesSQL = `SELECT il.name, il."unique", il.origin, ii.name
 	ORDER BY il.name, ii.seqno`
 
 func (SQLite) Indexes(ctx context.Context, db *sql.DB, t Table) ([]Index, error) {
-	// pragma_index_list returns no rows for a missing table, so check first.
+	// pragma_index_list returns no rows for a missing table or a view.
 	if err := sqliteTableExists(ctx, db, t.Name); err != nil {
 		return nil, err
 	}
@@ -153,3 +148,11 @@ func sqliteTableExists(ctx context.Context, db *sql.DB, name string) error {
 	}
 	return nil
 }
+
+func (SQLite) QuoteIdent(name string) string { return doubleQuote(name) }
+
+func (SQLite) selectPage(cols, from string, orderBy []string, limit, offset int) string {
+	return limitOffset(cols, from, orderBy, limit, offset)
+}
+
+func (SQLite) countExpr() string { return "COUNT(*)" }

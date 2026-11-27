@@ -15,8 +15,9 @@ type ConnectionService struct {
 	pool  *conn.Pool
 }
 
-func NewConnectionService(files *FileService, st *store.Store) *ConnectionService {
-	return &ConnectionService{files: files, store: st, pool: conn.NewPool()}
+// NewConnectionService uses pool for listing databases and closes it on shutdown.
+func NewConnectionService(files *FileService, st *store.Store, pool *conn.Pool) *ConnectionService {
+	return &ConnectionService{files: files, store: st, pool: pool}
 }
 
 // ConnectionDraft is what the connection form holds.

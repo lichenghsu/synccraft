@@ -9,6 +9,7 @@ Wrappers around the Go bindings. **Components import only from here, never from 
 | `api` | Thin wrappers around each Service method |
 | `DBType`, `FileKind` | Re-exported enums |
 | `Connection`, `ConnectionConfig`, `ConnectionDraft`, `TLSFiles` | Re-exported types for the connection APIs |
+| `Table`, `TableInfo`, `Column`, `Index`, `RowPage` | Re-exported types for the browse APIs |
 | `arr(x)` | Go nil slices serialize to `null`; normalizes them to `[]` |
 | `isCancel(e)` | Whether the error is a user-initiated cancel (`CancelError`) |
 | `errMsg(e)` | Turns any error into a displayable string; errors returned from Go become an `Error` with `message` |
@@ -39,3 +40,14 @@ The backend rejects any path that did not come from `pickFile` (or from the save
 | `testSaved(id)`, `listSavedDatabases(id)`, `deleteConnection(id)` | Saved connections, by id; the backend fills in the passwords |
 
 Call `listSaved()` before using a saved connection's file paths: it also puts those paths on the backend's allowlist.
+
+## Browsing
+
+| Call | Returns |
+|---|---|
+| `listTables(id, database)` | Tables of a saved connection (`database` `""` = its default) |
+| `describeTable(id, database, table)` | Columns, primary key, indexes |
+| `previewRows(id, database, table, offset, limit)` | One page of rows (limit capped at 500) |
+| `countRows(id, database, table)` | Row count; can be slow on big tables |
+
+All four return the `CancellablePromise`; use them with `useCancellable` so a newer selection cancels the older call.

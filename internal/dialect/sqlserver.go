@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // SQLServer reads metadata from SQL Server. An empty Table.Schema means the
@@ -212,3 +213,20 @@ func mssqlTableExists(ctx context.Context, db *sql.DB, t Table) error {
 	}
 	return nil
 }
+
+func (SQLServer) QuoteIdent(name string) string {
+	return "[" + strings.ReplaceAll(name, "]", "]]") + "]"
+}
+
+// OFFSET ... FETCH requires an ORDER BY; (SELECT NULL) keeps server order.
+func (SQLServer) selectPage(cols, from string, orderBy []string, limit, offset int) string {
+	order := "(SELECT NULL)"
+	if len(orderBy) > 0 {
+		order = strings.Join(orderBy, ", ")
+	}
+	return fmt.Sprintf(`SELECT %s FROM %s ORDER BY %s OFFSET %d ROWS FETCH NEXT %d ROWS ONLY`,
+		cols, from, order, offset, limit)
+}
+
+// COUNT(*) is an int and overflows past 2^31 rows.
+func (SQLServer) countExpr() string { return "COUNT_BIG(*)" }
