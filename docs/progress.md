@@ -4,7 +4,7 @@
 |---|---|---|
 | M0 | Project scaffold: Wails v3 + React/TS, example Service, hooks, test databases, Renovate, CI | ✅ Done |
 | M1 | Connection management: connection pool, four drivers, structured DSNs, passwords in the OS keychain, SSH tunnels, Kubernetes | ✅ Done |
-| M2 | Introspection and table browser: Dialect interface, metadata queries for all four databases | 🔍 In review |
+| M2 | Introspection and table browser: Dialect interface, metadata queries for all four databases | ✅ Done |
 | M3 | Schema comparison: diff algorithm, DDL in the target dialect, transactional execution | ⏳ Not started |
 | M4 | Data sync: parameterized DML, value normalization, progress events and cancellation, streaming diff for large tables | ⏳ Not started |
 | M5 | Side-by-side table comparison: row counts, column mapping, row diff, column statistics, CSV export | ⏳ Not started |
@@ -44,5 +44,5 @@
 - [x] `ReadRows` / `CountRows`: quoted identifiers, primary-key order, per-engine paging, JSON-safe cell values
 - [x] `SchemaService` (Wails): `ListTables`, `DescribeTable`, `PreviewRows`, `CountRows` on saved connections; pool shared with `ConnectionService`
 - [x] React: Browse page (connection / database pickers, table filter, Structure and Data tabs, cancellable loads)
-- [ ] Manual check in the real window against all four databases
+- [x] Manual check in the real window against all four databases
 - **Acceptance**: every table in the dev databases shows its structure and pages through its rows; switching tables quickly never shows stale data
