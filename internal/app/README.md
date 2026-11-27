@@ -87,3 +87,19 @@ Table browser backend. Works on **saved connections only** (by id), so passwords
 | `CountRows(ctx, id, database, table)` | Row count; may scan the whole table, so call it on request and keep it cancellable |
 
 Each database is a separate pooled connection (the pool key includes the database). Missing tables and views fail with `dialect.ErrTableNotFound`.
+
+### CompareService
+
+Schema compare between two saved connections (`Side{connectionId, database}`). Source and target must be the same engine; the check runs on the saved configs before connecting (`ErrEngineMismatch`).
+
+| Method | Description |
+|---|---|
+| `Compare(ctx, source, target)` | Loads both schemas (`schema.Load`), diffs them and returns `Comparison{token, steps, transactionalDdl}`; `steps` holds every change with the SQL it would run if all were applied |
+| `Preview(token, ids)` | SQL for the selected changes, in execution order (`schema.Script` on the cached schemas, no database access) |
+| `Apply(ctx, token, ids)` | Reloads both schemas, refuses with `ErrSchemaChanged` if either changed since `Compare`, then runs the selected changes on the target in one transaction (`schema.Apply`) |
+
+The service keeps only the latest comparison (single window). Its token goes stale when `Compare` runs again and is spent by `Apply` whether it succeeds or not, so the same comparison can never be applied twice (`ErrComparisonExpired`).
+
+The frontend sends change ids, never SQL: a compromised WebView can only apply changes the backend itself derived from the two schemas. Unknown ids fail with `ErrUnknownChange`.
+
+The fingerprint is a SHA-256 of both loaded schemas as JSON; any structural change on either side (including one Compare would not report, such as column order) makes `Apply` refuse.

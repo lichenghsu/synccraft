@@ -126,7 +126,7 @@ func TestPGColumns(t *testing.T) {
 			table: Table{Schema: "public", Name: "users"},
 			want: []Column{
 				{Name: "id", Type: "integer", Nullable: false, Default: ptr("nextval('users_id_seq'::regclass)"), Position: 1},
-				{Name: "ident", Type: "integer", Nullable: false, Position: 2},
+				{Name: "ident", Type: "integer", Nullable: false, Position: 2, AutoIncrement: true},
 				{Name: "name", Type: "character varying(20)", Nullable: false, Default: ptr("'guest'::character varying"), Position: 3},
 				{Name: "price", Type: "numeric(10,2)", Nullable: true, Position: 4},
 				{Name: "created_at", Type: "timestamp with time zone", Nullable: true, Default: ptr("now()"), Position: 5},

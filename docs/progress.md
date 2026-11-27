@@ -5,7 +5,7 @@
 | M0 | Project scaffold: Wails v3 + React/TS, example Service, hooks, test databases, Renovate, CI | ✅ Done |
 | M1 | Connection management: connection pool, four drivers, structured DSNs, passwords in the OS keychain, SSH tunnels, Kubernetes | ✅ Done |
 | M2 | Introspection and table browser: Dialect interface, metadata queries for all four databases | ✅ Done |
-| M3 | Schema comparison: diff algorithm, DDL in the target dialect, transactional execution | ⏳ Not started |
+| M3 | Schema comparison: diff algorithm, DDL in the target dialect, transactional execution | 🔍 In review |
 | M4 | Data sync: parameterized DML, value normalization, progress events and cancellation, streaming diff for large tables | ⏳ Not started |
 | M5 | Side-by-side table comparison: row counts, column mapping, row diff, column statistics, CSV export | ⏳ Not started |
 | M6 | Packaging and release: installers for three platforms, release workflow, code signing, auto-update | ⏳ Not started |
@@ -46,3 +46,14 @@
 - [x] React: Browse page (connection / database pickers, table filter, Structure and Data tabs, cancellable loads)
 - [x] Manual check in the real window against all four databases
 - **Acceptance**: every table in the dev databases shows its structure and pages through its rows; switching tables quickly never shows stale data
+
+## M3 checklist
+
+- [x] `internal/schema`: `Load` (full structure of every table), `Diff` (pure; tables / columns / primary key / indexes; execution-safe order; destructive flag), normalization against false differences
+- [x] DDL per target dialect (same engine only): create / drop table, add / drop / alter column, primary key, create / drop index (SQLite table rebuild); `Column.AutoIncrement` in introspection
+- [x] Transactional execution (`Apply`); `TransactionalDDL` false for MySQL, warned in the UI
+- [x] `CompareService` (Wails): compare two saved connections / databases, preview and apply selected changes by id; refuses if either schema changed since the comparison
+- [x] React: Compare page (source / target pickers, change list with destructive changes highlighted, SQL preview, apply with confirmation)
+- [x] Manual check in the real window against all four databases
+- [x] Integration tests per engine: apply the diff, compare again, expect no changes
+- **Acceptance**: after applying all changes, comparing again shows no differences, on all four engines

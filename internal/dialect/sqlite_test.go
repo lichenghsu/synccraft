@@ -164,8 +164,8 @@ func formatColumns(cols []Column) string {
 		if c.Default != nil {
 			def = *c.Default
 		}
-		s += fmt.Sprintf("  {Name:%q Type:%q Nullable:%v Default:%s Position:%d}\n",
-			c.Name, c.Type, c.Nullable, def, c.Position)
+		s += fmt.Sprintf("  {Name:%q Type:%q Nullable:%v Default:%s Position:%d Auto:%v}\n",
+			c.Name, c.Type, c.Nullable, def, c.Position, c.AutoIncrement)
 	}
 	return s
 }

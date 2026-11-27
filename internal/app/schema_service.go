@@ -77,23 +77,30 @@ func (s *SchemaService) CountRows(ctx context.Context, id, database string, t di
 	return dialect.CountRows(ctx, d, db, t)
 }
 
-// open returns the dialect and a pooled DB for a saved connection, switched
-// to database when it is not empty. SQLite has a single database per file.
+// open returns the dialect and a pooled DB for a saved connection.
 func (s *SchemaService) open(ctx context.Context, id, database string) (dialect.Dialect, *sql.DB, error) {
-	cfg, err := s.store.Get(id)
+	_, d, db, err := openSaved(ctx, s.store, s.pool, id, database)
+	return d, db, err
+}
+
+// openSaved returns the config, dialect and a pooled DB for a saved
+// connection, switched to database when it is not empty. SQLite has a single
+// database per file.
+func openSaved(ctx context.Context, st *store.Store, pool *conn.Pool, id, database string) (conn.ConnectionConfig, dialect.Dialect, *sql.DB, error) {
+	cfg, err := st.Get(id)
 	if err != nil {
-		return nil, nil, err
+		return cfg, nil, nil, err
 	}
 	if database != "" && cfg.Type != conn.SQLite {
 		cfg.Database = database
 	}
 	d, err := dialect.For(cfg.Type)
 	if err != nil {
-		return nil, nil, err
+		return cfg, nil, nil, err
 	}
-	db, err := s.pool.Get(ctx, cfg)
+	db, err := pool.Get(ctx, cfg)
 	if err != nil {
-		return nil, nil, err
+		return cfg, nil, nil, err
 	}
-	return d, db, nil
+	return cfg, d, db, nil
 }

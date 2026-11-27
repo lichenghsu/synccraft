@@ -43,7 +43,7 @@ func (SQLServer) ListTables(ctx context.Context, db *sql.DB) ([]Table, error) {
 }
 
 const mssqlColumnsSQL = `SELECT c.name, ty.name, c.max_length, c.precision, c.scale, c.is_nullable,
-		CASE WHEN c.is_computed = 0 THEN dc.definition END
+		CASE WHEN c.is_computed = 0 THEN dc.definition END, c.is_identity
 	FROM sys.columns c
 	JOIN sys.types ty ON ty.user_type_id = c.user_type_id
 	LEFT JOIN sys.default_constraints dc ON dc.object_id = c.default_object_id
@@ -69,7 +69,7 @@ func (SQLServer) Columns(ctx context.Context, db *sql.DB, t Table) ([]Column, er
 			maxLen, precision, scale int
 			dflt                     sql.NullString
 		)
-		if err := rows.Scan(&c.Name, &typeName, &maxLen, &precision, &scale, &c.Nullable, &dflt); err != nil {
+		if err := rows.Scan(&c.Name, &typeName, &maxLen, &precision, &scale, &c.Nullable, &dflt, &c.AutoIncrement); err != nil {
 			return nil, err
 		}
 		c.Type = mssqlType(typeName, maxLen, precision, scale)
